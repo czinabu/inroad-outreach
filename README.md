@@ -11,6 +11,8 @@ Enter one prospect and what you sell, and AI (Claude, or a free model on your ow
 
 - **Contacts:** save a prospect and the tool keeps every set of drafts you write for them, puts a date on each step of their follow-up sequence, and shows who's due today. Check steps off as you go, set a status (replied, meeting booked, not interested), add their email, phone and LinkedIn, and export everything to CSV for HubSpot, Salesforce or a spreadsheet. Contacts are saved only in your own browser, so nobody else using the app can see them. Use **download a backup** on the Contacts page now and then, since clearing your browser data deletes them, and **Restore a backup** to move them to another browser. If an older version saved contacts in `data/contacts.json`, they move into your browser the first time you open the app on that computer.
 
+- **Objections:** type a word from what the prospect said (price, busy, think about it) and read the rebuttal and the close for your call type (transfer or appointment). It's static text kept in your browser, with no AI call, so it's instant and works offline. Pick a prospect from your contacts and one tap on **Transferred**/**Booked** or **Lost** logs the objection, the line you said and the result on their history; a win moves them to Meeting booked. **Save as file** and **Load a set** move your objection set between browsers, in the same format as the standalone sdr-objection-handler app. Keep a private set in a file rather than committing it.
+
 Nothing is sent for you. You copy each draft and send it from your own accounts.
 
 ## Use it online
@@ -77,6 +79,7 @@ GitHub Actions runs both on every pull request and on pushes to `main`.
 - `server/playbooks.ts` holds the industry playbooks and follow-up sequences.
 - `server/attachment.ts` reads text out of attached PDFs and text files.
 - `server/website.ts` fetches a company web page (public addresses only) and pulls out its readable text.
+- `public/objection-library.js` cleans, searches and exports objection sets; `public/objections.js` is the Objections page and `public/objections-demo.js` the built-in demo set.
 - `public/contact-store.js` keeps saved contacts in the browser, works out follow-up dates and builds the CSV export and backups.
 - `server/app.ts` is the Express server with `/api/drafts`, plus `/api/drafts/prompt` and `/api/drafts/parse` for when the browser calls the model itself.
 - `server/index.ts` starts the app on your computer; `server.ts` is the entry point Vercel uses for the online copy, and `vercel.json` sets its security headers.

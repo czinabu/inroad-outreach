@@ -216,6 +216,26 @@ export class ContactStore {
     return contact;
   }
 
+  /**
+   * Logs how an objection went on a call: which objection, which rebuttal was said, and whether it ended well.
+   * A win (transferred or booked) moves a prospect who's still in play to "Meeting booked".
+   */
+  logObjection(id, { objectionId, title, line = "", outcome, mode = "" }) {
+    if (outcome !== "won" && outcome !== "lost") throw new ContactError("The outcome must be won or lost.");
+    const contact = this.get(id);
+    const now = this.#now().toISOString();
+    const entry = { id: newId(), at: now, objectionId: String(objectionId).slice(0, 200), title: String(title).slice(0, 200), line: String(line).slice(0, 300), mode, outcome };
+    (contact.objectionCalls ??= []).push(entry);
+    contact.activity.push({ at: now, text: `Call: "${entry.title}", ${outcome === "won" ? "won" : "lost"}${entry.line ? ` (said: ${entry.line.slice(0, 80)})` : ""}` });
+    if (outcome === "won" && (contact.status === "active" || contact.status === "replied")) {
+      contact.status = "meeting";
+      contact.activity.push({ at: now, text: `Status: ${STATUSES.meeting}` });
+    }
+    contact.updatedAt = now;
+    this.#save();
+    return entry;
+  }
+
   delete(id) {
     this.get(id);
     this.#contacts = this.#load().filter((c) => c.id !== id);
