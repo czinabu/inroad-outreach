@@ -278,15 +278,13 @@
     </header>
     <section class="panel objection-panel">
       <div class="objection-controls">
-        <label>What did they say?
-          <input type="search" id="objection-search" placeholder="price, busy, think about it..." autocomplete="off">
+        <label class="objection-search"><span class="sr-only">What did they say?</span>
+          <input type="search" id="objection-search" placeholder="What did they say? Try price, busy, think..." autocomplete="off">
         </label>
-        <label>Call type
-          <select id="objection-mode"></select>
-        </label>
-        <label>Log calls on
-          <select id="objection-contact"></select>
-        </label>
+        <div class="objection-setup">
+          <label>Call type <select id="objection-mode"></select></label>
+          <label>Log calls on <select id="objection-contact"></select></label>
+        </div>
       </div>
       <p class="error" id="objection-error" role="alert" hidden></p>
       <p class="objection-toast" id="objection-toast" role="status" hidden></p>
