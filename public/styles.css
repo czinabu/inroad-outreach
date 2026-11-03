@@ -818,49 +818,86 @@ code { padding: 1px 5px; border: 1px solid var(--border); border-radius: 4px; ba
 .model-choice[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--text); }
 .model-choice .best { font-size: 0.7rem; font-weight: 600; color: var(--good); }
 
-/* Objections page */
-.objection-panel { max-width: 860px; }
-.objection-controls { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 12px; margin-bottom: 14px; }
+/* Objections page: the list on the left, the rebuttal panel on the right, sticky so it stays in view on a call. */
+.objection-panel { max-width: 1240px; padding: 20px; }
+.objection-controls { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 12px; margin-bottom: 6px; }
 @media (max-width: 720px) { .objection-controls { grid-template-columns: 1fr; } }
-.objection-group h3 { margin: 14px 0 6px; font-size: 0.8rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
-.objection-chips { display: flex; flex-wrap: wrap; gap: 8px; }
-.objection-chip {
-  padding: 8px 12px;
-  border: 1px solid var(--border-strong);
-  border-radius: 999px;
-  background: var(--surface);
-  color: var(--text);
+.objection-workspace { display: grid; grid-template-columns: minmax(240px, 320px) minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 900px) { .objection-workspace { grid-template-columns: 1fr; } }
+@media (max-width: 600px) { .objection-panel { padding: 14px; } .objection-card-head { padding: 14px 14px 0; } .objection-body { padding: 4px 14px 14px; } .objection-outcome { padding: 0 14px 14px; } }
+
+.objection-list { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.objection-group { display: flex; flex-direction: column; gap: 2px; }
+.objection-group h3 { margin: 0 0 4px; padding: 0 10px; font-size: 0.72rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.objection-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 10px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-2);
   font: inherit;
+  font-size: 0.9rem;
+  text-align: left;
   cursor: pointer;
 }
-.objection-chip:hover { background: var(--accent-soft); border-color: var(--accent); }
-.objection-card { border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); margin: 10px 0; }
-.objection-card > summary { display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; cursor: pointer; }
-.objection-title { font-weight: 600; }
-.objection-cue { color: var(--muted); font-size: 0.85rem; }
-.objection-card[open] > summary .objection-cue { display: none; }
-.objection-body { padding: 0 14px 14px; }
-.objection-body .label { margin: 12px 0 4px; font-size: 0.78rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
-.script-text { margin: 4px 0; line-height: 1.5; }
+.objection-item:hover { background: var(--surface-2); color: var(--text); }
+.objection-item[aria-current="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--text); font-weight: 500; }
+.objection-item-title { flex: 1; min-width: 0; }
+.objection-item kbd { flex: none; }
+.objection-nomatch { margin: 0; padding: 0 10px; font-size: 0.85rem; }
+
+.objection-detail { min-width: 0; }
+@media (min-width: 901px) {
+  .objection-detail { position: sticky; top: 24px; max-height: calc(100vh - 48px); display: flex; flex-direction: column; }
+}
+.objection-card, .objection-empty { border: 1px solid var(--border-strong); border-radius: var(--radius); background: var(--surface-2); }
+.objection-card { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+.objection-card-head { padding: 16px 20px 0; }
+.objection-group-label { margin: 0 0 2px; font-size: 0.72rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.objection-title { margin: 0; font-size: 1.25rem; font-weight: 600; }
+.objection-body { flex: 1; min-height: 0; overflow-y: auto; padding: 4px 20px 16px; }
+.objection-body .label, .objection-empty .label, .objection-outcome .label { margin: 14px 0 6px; font-size: 0.72rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.objection-note { margin: 8px 0 0; }
+.script-text { margin: 4px 0; line-height: 1.55; }
 .blank { background: var(--warn-soft); color: var(--warn); padding: 0 3px; border-radius: 3px; }
-.objection-line { display: flex; gap: 10px; align-items: flex-start; padding: 8px 10px; margin: 6px 0; border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; }
+.objection-line { display: flex; flex-direction: row; gap: 12px; align-items: flex-start; padding: 12px 14px; margin: 8px 0; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--surface); font-weight: 400; cursor: pointer; }
+.objection-line .script-text { font-size: 1.05rem; color: var(--text); margin: 0; }
+.objection-line small { display: block; margin-top: 4px; }
 .objection-line:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
-.objection-line input { margin-top: 4px; }
-.objection-probe, .objection-close { margin-top: 12px; padding: 10px 12px; border-radius: var(--radius-sm); background: var(--guide-bg); border: 1px solid var(--guide-border); }
+.objection-line input[type="radio"] { width: auto; flex: none; margin-top: 6px; padding: 0; box-shadow: none; }
+.objection-probe, .objection-close { margin-top: 14px; padding: 4px 14px 12px; border-radius: var(--radius-sm); background: var(--guide-bg); border: 1px solid var(--guide-border); }
 .objection-answers { margin: 6px 0 0; padding-left: 18px; }
+.objection-answers li { margin: 4px 0; line-height: 1.5; }
 .objection-more { margin-top: 6px; font-size: 0.9rem; }
+.objection-more > summary { cursor: pointer; color: var(--text-2); }
+
+.objection-outcome { flex: none; padding: 0 20px 14px; border-top: 1px solid var(--border-strong); background: var(--surface-2); }
+.objection-outcome .label { margin-top: 12px; }
 .objection-outcome-buttons { display: flex; gap: 10px; }
 .win-button, .lose-button { flex: 1; padding: 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-strong); font: inherit; font-weight: 600; cursor: pointer; background: var(--surface); color: var(--text); }
 .win-button { border-color: var(--good); color: var(--good); }
 .win-button:hover { background: var(--good-soft); }
 .lose-button:hover { background: var(--error-soft); }
 .win-button:disabled, .lose-button:disabled { opacity: 0.6; cursor: default; }
-.objection-logged { margin: 6px 0 0; min-height: 1.2em; }
-.objection-set { margin-top: 18px; }
-.objection-line { flex-direction: row; font-weight: 400; }
-.objection-line input[type="radio"] { width: auto; flex: none; padding: 0; box-shadow: none; }
+.objection-logged { margin: 6px 0 0; min-height: 1.2em; font-size: 0.85rem; }
+
+.objection-empty { padding: 28px 24px; }
+.objection-empty h2 { margin: 0 0 6px; font-size: 1.15rem; }
+.objection-empty > p.muted { margin: 0; max-width: 46ch; line-height: 1.5; }
+.objection-top { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; }
+.objection-top-item { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font: inherit; text-align: left; }
+button.objection-top-item { cursor: pointer; }
+button.objection-top-item:hover { border-color: var(--accent); }
+.objection-top-item span { font-size: 0.8rem; }
+
+.objection-footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 24px; margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border); font-size: 0.8rem; }
+.objection-footer p { margin: 0; }
 .objection-set { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline; }
-.objection-set .link-button { margin: 0; }
+.objection-set .link-button { margin: 0; font-size: inherit; }
 .objection-panel kbd {
   display: inline-block;
   min-width: 1.4em;
@@ -869,16 +906,15 @@ code { padding: 1px 5px; border: 1px solid var(--border); border-radius: 4px; ba
   border-radius: 4px;
   background: var(--surface-2);
   color: var(--muted);
-  font: 600 0.75rem/1.5 ui-monospace, monospace;
+  font: 600 0.72rem/1.5 ui-monospace, monospace;
   text-align: center;
 }
 .objection-toast { display: flex; gap: 12px; align-items: center; margin: 0 0 12px; padding: 10px 12px; border-radius: var(--radius-sm); background: var(--good-soft); color: var(--good); font-weight: 500; }
 .objection-toast[hidden] { display: none; }
 .objection-toast .link-button { margin: 0; }
-.objection-stats { margin-top: 14px; }
-.objection-stats > summary { cursor: pointer; font-weight: 600; }
+#objection-status:empty { display: none; }
+.objection-stats { margin-top: 12px; font-size: 0.85rem; }
+.objection-stats > summary { cursor: pointer; color: var(--text-2); }
 .objection-stats-list { padding-left: 20px; }
 .objection-stats-list > li { margin: 8px 0; }
 .objection-stats-list ul { margin: 4px 0 0; padding-left: 18px; color: var(--text-2); font-size: 0.9rem; }
-.objection-keys { margin-top: 10px; font-size: 0.8rem; }
-.objection-chip kbd, .objection-title kbd { margin-right: 6px; }
