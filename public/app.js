@@ -13,6 +13,7 @@ import {
   showContact,
 } from "./contacts.js";
 import { showObjections } from "./objections.js";
+import { initToday, renderToday } from "./today.js";
 import { draftingWith, initModelSettings, maxFileBytes, requestDrafts } from "./models.js";
 
 const form = document.getElementById("prospect-form");
@@ -350,6 +351,7 @@ onContactsChange(() => {
     renderSequenceTab();
   }
   if (!document.getElementById("contacts-view").hidden) renderContactsView();
+  renderToday();
 });
 
 // "Write new drafts" on a contact: fill in the form, show their latest drafts and go back to the Draft view.
@@ -374,16 +376,17 @@ onDraftAgain((contact) => {
 
 // --- Views ---------------------------------------------------------------------
 
-const VIEWS = ["draft", "contacts", "objections", "model"];
+const VIEWS = ["today", "draft", "contacts", "objections", "model"];
 
-function showView(name) {
+function showView(name, options = {}) {
   for (const view of VIEWS) document.getElementById(`${view}-view`).hidden = view !== name;
   for (const button of document.querySelectorAll("[data-view]")) {
     if (button.dataset.view === name) button.setAttribute("aria-current", "page");
     else button.removeAttribute("aria-current");
   }
   if (name === "contacts") renderContactsView();
-  if (name === "objections") showObjections();
+  if (name === "objections") showObjections(options.contactId);
+  if (name === "today") renderToday();
   const hash = name === "draft" ? "" : `#${name}`;
   if (location.hash !== hash) history.replaceState(null, "", hash || location.pathname);
 }
@@ -466,6 +469,16 @@ form.addEventListener("submit", async (event) => {
   }
 });
 
+initToday({
+  onOpenObjections: (contactId) => showView("objections", { contactId }),
+  onOpenContact: (contactId) => {
+    showView("contacts");
+    showContact(contactId);
+  },
+});
+
 await Promise.all([loadContacts(), initModelSettings()]);
 const startView = location.hash.slice(1);
+// With follow-ups due, open on Today: that's the day's work. Otherwise the Draft page, as before.
 if (VIEWS.includes(startView) && startView !== "draft") showView(startView);
+else if (!startView && dueCount() > 0) showView("today");

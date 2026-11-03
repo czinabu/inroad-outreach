@@ -1,7 +1,8 @@
 // The contact list: saved prospects, their draft history and their follow-up dates.
 // Everything is kept in this browser (see contact-store.js); nothing about your prospects is stored on a server.
-import { ContactStore, STATUSES, contactsCsv, today, withSchedule } from "./contact-store.js";
+import { ContactStore, STATUSES, contactsCsv, stepDraftFor as stepDraftForPanel, today, withSchedule } from "./contact-store.js";
 import { copyButton, dueLabel, el, formatDate } from "./dom.js";
+import { openLink, renderStepDraft, stepState } from "./step-draft.js";
 
 const store = new ContactStore(window.localStorage);
 const state = { today: "", statuses: STATUSES, contacts: [] };
@@ -111,6 +112,18 @@ export async function saveContact(prospect, drafts, cadence) {
   return getContact(contact.id);
 }
 
+/** Keeps a drafted follow-up on a sequence step (see ContactStore.saveStepDraft). */
+export async function saveStepDraft(id, index, draft) {
+  store.saveStepDraft(id, index, draft);
+  refresh();
+  return getContact(id);
+}
+
+/** Every contact, with schedules, for the Today page. */
+export function allContacts() {
+  return state.contacts;
+}
+
 export async function updateContact(id, changes) {
   store.update(id, changes);
   refresh();
@@ -147,7 +160,13 @@ export function dueCount() {
 
 // --- Sequence ------------------------------------------------------------------
 
-/** Renders a contact's sequence with due dates and a checkbox per step. Used in the Sequence tab and on the contact page. */
+/** Sequence steps whose draft is open, by "contactId:index", so it stays open when the list re-renders. */
+const openSteps = new Set();
+
+/**
+ * Renders a contact's sequence with due dates, a checkbox per step, and each step's draft behind a toggle.
+ * Used in the Sequence tab and on the contact page.
+ */
 export function renderSequence(list, contact, onError) {
   const nextIndex = contact.status === "active" ? contact.sequence.findIndex((s) => !s.doneAt) : -1;
   list.replaceChildren(
@@ -177,7 +196,33 @@ export function renderSequence(list, contact, onError) {
       const action = el("span", "action", step.action);
       if (due && (due.state === "overdue" || due.state === "today")) action.append(el("span", `due ${due.state}`, due.text));
 
-      item.append(check, when, el("span", "channel", step.channel), action);
+      const key = `${contact.id}:${index}`;
+      const ready = stepState(contact, index) !== "missing";
+      const toggle = el("button", "step-toggle", openSteps.has(key) ? "Hide" : ready ? "Draft" : "Write");
+      toggle.type = "button";
+      toggle.setAttribute("aria-expanded", String(openSteps.has(key)));
+      toggle.title = ready ? "Show the draft for this step" : "Write a draft for this step";
+      if (ready) toggle.classList.add("ready");
+
+      const panel = el("div", "step-panel");
+      panel.hidden = !openSteps.has(key);
+      const fill = () => {
+        const body = el("div");
+        renderStepDraft(body, contact, index, { save: saveStepDraft, onError });
+        const link = openLink(contact, step, stepDraftForPanel(contact, index));
+        panel.replaceChildren(...(link ? [link] : []), body);
+      };
+      if (!panel.hidden) fill();
+      toggle.addEventListener("click", () => {
+        if (openSteps.has(key)) openSteps.delete(key);
+        else openSteps.add(key);
+        panel.hidden = !openSteps.has(key);
+        toggle.textContent = panel.hidden ? (ready ? "Draft" : "Write") : "Hide";
+        toggle.setAttribute("aria-expanded", String(!panel.hidden));
+        if (!panel.hidden) fill();
+      });
+
+      item.append(check, when, el("span", "channel", step.channel), action, toggle, panel);
       return item;
     }),
   );

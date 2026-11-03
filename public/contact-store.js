@@ -54,6 +54,88 @@ export function nextFollowUp(contact) {
   return { date: stepDue(contact, step), channel: step.channel, action: step.action };
 }
 
+// --- Step drafts -------------------------------------------------------------
+
+/**
+ * The draft to use for a sequence step. The first email, the first call and the first one or two LinkedIn steps
+ * (connection note, then the message after they accept) come from the contact's latest first-touch drafts; every
+ * later step gets its own draft, written when it comes due and kept on the step.
+ */
+export function stepDraftFor(contact, index) {
+  const step = contact.sequence[index];
+  if (!step) return null;
+  if (step.draft) return { source: "step", ...step.draft };
+  const first = contact.drafts.at(-1)?.drafts;
+  if (!first) return null;
+  const sameChannelBefore = contact.sequence.slice(0, index).filter((s) => s.channel === step.channel).length;
+  const empty = { subject: "", message: "", voicemail: "", talkingPoints: [], why: "" };
+  if (step.channel === "Email" && sameChannelBefore === 0) {
+    return { ...empty, source: "first", subject: first.email.subject, message: first.email.body, why: first.email.why };
+  }
+  if (step.channel === "Phone" && sameChannelBefore === 0) {
+    return { ...empty, source: "first", message: first.phone.opener, talkingPoints: first.phone.discoveryQuestions, voicemail: first.phone.voicemail, why: first.phone.why };
+  }
+  if (step.channel === "LinkedIn" && sameChannelBefore === 0) {
+    return { ...empty, source: "first", message: first.linkedin.connectionNote, why: first.linkedin.why };
+  }
+  if (step.channel === "LinkedIn" && sameChannelBefore === 1) {
+    return { ...empty, source: "first", message: first.linkedin.followUpMessage, why: first.linkedin.why };
+  }
+  return null;
+}
+
+/** The /api/steps request for a step: the prospect, the SDR (name, offer, goal, tone) and what was already sent. */
+export function stepRequest(contact, index, sender) {
+  const step = contact.sequence[index];
+  const first = contact.drafts.at(-1)?.drafts;
+  const earlier = contact.sequence
+    .slice(0, index)
+    .filter((s) => s.draft)
+    .slice(-4)
+    .map((s) => ({ day: s.day, channel: s.channel, text: [s.draft.subject, s.draft.message].filter(Boolean).join("\n").slice(0, 2000) }));
+  return {
+    prospectName: contact.prospectName,
+    prospectTitle: contact.prospectTitle ?? "",
+    company: contact.company,
+    industry: contact.industry ?? "",
+    notes: contact.notes ?? "",
+    yourName: sender.yourName ?? "",
+    yourOffer: sender.yourOffer ?? "",
+    goal: sender.goal ?? "",
+    tone: sender.tone || "friendly",
+    step: { day: step.day, channel: step.channel, action: step.action },
+    touch: index + 1,
+    totalTouches: contact.sequence.length,
+    firstTouch: first
+      ? {
+          websiteHook: first.websiteHook ?? "",
+          emailSubject: first.email.subject,
+          emailBody: first.email.body,
+          linkedinNote: first.linkedin.connectionNote,
+          voicemail: first.phone.voicemail,
+        }
+      : undefined,
+    earlier,
+  };
+}
+
+/**
+ * Everything due today or overdue, one entry per contact: their next step (index -1 for a manual follow-up date
+ * after the sequence is finished). Most overdue first, then by name.
+ */
+export function dueQueue(contacts, date) {
+  return contacts
+    .map((contact) => ({ contact, next: nextFollowUp(contact) }))
+    .filter(({ next }) => next && next.date <= date)
+    .map(({ contact, next }) => ({ contact, index: contact.sequence.findIndex((s) => !s.doneAt), due: next.date }))
+    .sort((a, b) => a.due.localeCompare(b.due) || a.contact.prospectName.localeCompare(b.contact.prospectName));
+}
+
+/** How many sequence steps were checked off on this date, across all contacts. */
+export function doneOn(contacts, date) {
+  return contacts.reduce((n, c) => n + c.sequence.filter((s) => s.doneAt && today(new Date(s.doneAt)) === date).length, 0);
+}
+
 /** A contact plus what the page needs to show it: its next follow-up and each step's due date. */
 export function withSchedule(contact) {
   const done = contact.sequence.filter((s) => s.doneAt).length;
@@ -211,6 +293,27 @@ export class ContactStore {
         contact.activity.push({ at: now, text: `Undone: Day ${target.day} ${target.channel}` });
       }
     }
+    contact.updatedAt = now;
+    this.#save();
+    return contact;
+  }
+
+  /** Keeps a drafted follow-up on its sequence step, replacing any earlier draft for that step. */
+  saveStepDraft(id, index, draft) {
+    const contact = this.get(id);
+    const step = contact.sequence[index];
+    if (!step) throw new ContactError("That sequence step doesn't exist.");
+    const now = this.#now().toISOString();
+    const text = (value, max) => String(value ?? "").slice(0, max);
+    step.draft = {
+      subject: text(draft.subject, 300),
+      message: text(draft.message, 5000),
+      voicemail: text(draft.voicemail, 2000),
+      talkingPoints: (Array.isArray(draft.talkingPoints) ? draft.talkingPoints : []).slice(0, 6).map((t) => text(t, 500)),
+      why: text(draft.why, 1000),
+      createdAt: now,
+    };
+    contact.activity.push({ at: now, text: `Drafted: Day ${step.day} ${step.channel}` });
     contact.updatedAt = now;
     this.#save();
     return contact;
