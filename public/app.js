@@ -12,6 +12,7 @@ import {
   setIndustryLabels,
   showContact,
 } from "./contacts.js";
+import { showObjections } from "./objections.js";
 import { draftingWith, initModelSettings, maxFileBytes, requestDrafts } from "./models.js";
 
 const form = document.getElementById("prospect-form");
@@ -373,7 +374,7 @@ onDraftAgain((contact) => {
 
 // --- Views ---------------------------------------------------------------------
 
-const VIEWS = ["draft", "contacts", "model"];
+const VIEWS = ["draft", "contacts", "objections", "model"];
 
 function showView(name) {
   for (const view of VIEWS) document.getElementById(`${view}-view`).hidden = view !== name;
@@ -382,6 +383,7 @@ function showView(name) {
     else button.removeAttribute("aria-current");
   }
   if (name === "contacts") renderContactsView();
+  if (name === "objections") showObjections();
   const hash = name === "draft" ? "" : `#${name}`;
   if (location.hash !== hash) history.replaceState(null, "", hash || location.pathname);
 }

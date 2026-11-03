@@ -117,6 +117,30 @@ export async function updateContact(id, changes) {
   return getContact(id);
 }
 
+/** Logs an objection outcome on a contact's history (see ContactStore.logObjection). */
+export function logObjectionCall(id, call) {
+  const entry = store.logObjection(id, call);
+  refresh();
+  return entry;
+}
+
+export function undoObjectionCall(id, callId) {
+  store.undoObjection(id, callId);
+  refresh();
+}
+
+/** Every logged objection call across all contacts, for the Objections page's stats. */
+export function allObjectionCalls() {
+  return state.contacts.flatMap((c) => c.objectionCalls ?? []);
+}
+
+/** Saved contacts, by name, for the Objections page's prospect picker. */
+export function contactChoices() {
+  return state.contacts
+    .map((c) => ({ id: c.id, label: `${c.prospectName}, ${c.company}` }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+}
+
 export function dueCount() {
   return state.contacts.filter((c) => c.nextFollowUp && c.nextFollowUp.date <= state.today).length;
 }
