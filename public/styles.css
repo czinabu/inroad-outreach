@@ -828,6 +828,25 @@ code { padding: 1px 5px; border: 1px solid var(--border); border-radius: 4px; ba
 .test-row .good { color: var(--good); }
 .test-row .error { margin: 0; }
 
+/* "How do I check my memory?" under the computer picker */
+.hardware-help { margin: -4px 0 12px; font-size: 0.85rem; color: var(--text-2); }
+.hardware-help summary { cursor: pointer; color: var(--accent); font-weight: 500; font-size: 0.82rem; }
+.hardware-help summary:hover { text-decoration: underline; }
+.hardware-help > div { margin-top: 8px; padding: 10px 12px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); }
+.hardware-help ul { margin: 0 0 8px; padding-left: 18px; }
+.hardware-help li { margin-bottom: 4px; }
+.hardware-help code { font-size: 0.8rem; }
+
+/* The Model field: detected models in a list, with a refresh button beside it */
+.model-field { margin-bottom: 14px; }
+.model-field > label { margin-bottom: 6px; }
+.model-row { display: flex; gap: 8px; align-items: stretch; }
+.model-row select, .model-row input { flex: 1; min-width: 0; margin: 0; }
+.model-row .secondary { flex: none; margin: 0; white-space: nowrap; }
+.model-field > small { display: block; margin-top: 6px; }
+.model-field .link-button { margin: 4px 0 0; font-size: 0.82rem; }
+@media (max-width: 480px) { .model-row { flex-wrap: wrap; } .model-row .secondary { width: 100%; } }
+
 /* Suggested local models for the chosen computer */
 .model-choices { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 10px; }
 .model-choice {

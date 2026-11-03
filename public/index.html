@@ -385,14 +385,32 @@
           <label>Which model fits my computer?
             <select id="hardware"></select>
           </label>
+          <details class="hardware-help">
+            <summary>How do I check my computer's memory and graphics card?</summary>
+            <div>
+              <p><strong>Windows:</strong> Press Ctrl + Shift + Esc to open Task Manager, then click Performance (if you only see a small window, click More details first).</p>
+              <ul>
+                <li>Click <strong>Memory</strong>. The number at the top right, like 16.0 GB, is your computer's memory.</li>
+                <li>Click <strong>GPU</strong> (there may be a GPU 0 and a GPU 1: pick the NVIDIA or AMD one). <strong>Dedicated GPU memory</strong>, like 12.0 GB, is your graphics card's memory.</li>
+                <li>No NVIDIA or AMD GPU listed, or only Intel with no dedicated memory? Pick an option with "no graphics card".</li>
+              </ul>
+              <p><strong>Mac:</strong> Click the Apple menu at the top left, then <strong>About This Mac</strong>. If the chip says Apple M1, M2, M3, M4 or later, you have Apple silicon, and <strong>Memory</strong> (like 16 GB) is shared by the processor and graphics. An Intel Mac counts as a laptop with no graphics card.</p>
+              <p><strong>Linux:</strong> In a terminal, run <code>free -h</code> for memory. With an NVIDIA card, <code>nvidia-smi</code> shows its memory next to the card's name (like 12288MiB, which is 12 GB).</p>
+            </div>
+          </details>
           <div id="recommendation"></div>
         </div>
 
-        <label>Model
-          <input id="model-name" list="model-options" spellcheck="false" autocapitalize="off">
-          <datalist id="model-options"></datalist>
+        <div class="model-field">
+          <label for="model-select" id="model-label">Model</label>
+          <div class="model-row">
+            <select id="model-select" aria-describedby="model-help"></select>
+            <input id="model-name" spellcheck="false" autocapitalize="off" aria-labelledby="model-label" aria-describedby="model-help" hidden>
+            <button type="button" class="secondary" id="refresh-models">Refresh list</button>
+          </div>
           <small id="model-help"></small>
-        </label>
+          <button type="button" class="link-button" id="model-mode" hidden></button>
+        </div>
       </div>
 
       <div class="test-row">

@@ -342,33 +342,51 @@ async function testClaude() {
   return { ok: true, text: `Connected. Your key works with ${claudeModel()}.` };
 }
 
-async function testLocal(provider) {
+// What each local server said it has: null until asked, then { models, error }. error is set when it couldn't be asked.
+const detected = { lmstudio: null, ollama: null };
+// Bumped on every lookup so an older, slower answer can't overwrite a newer one.
+const lookups = { lmstudio: 0, ollama: 0 };
+
+/** Asks a local server which models it has downloaded. LM Studio and Ollama both answer GET /v1/models. */
+async function detectModels(provider) {
   const server = SERVERS[provider];
   const url = serverUrl(provider);
   const problem = urlProblem(url);
-  if (problem) return { ok: false, text: problem };
-  let models;
+  if (problem) return { models: [], error: problem };
   try {
     const response = await fetch(`${url}/models`, { credentials: "omit", referrerPolicy: "no-referrer", cache: "no-store" });
-    if (!response.ok) return { ok: false, text: `${server.name} answered with an error (${response.status}). Check the address ends in /v1.` };
-    models = ((await json(response)).data ?? []).map((m) => String(m.id)).filter(Boolean);
+    if (!response.ok) return { models: [], error: `${server.name} answered with an error (${response.status}). Check the address ends in /v1.` };
+    // Embedding models can't write drafts, so they're left out of the list.
+    const ids = ((await json(response)).data ?? []).map((m) => String(m?.id ?? "")).filter((id) => id && !/embed/i.test(id));
+    return { models: [...new Set(ids)].sort((a, b) => a.localeCompare(b)), error: "" };
   } catch {
-    return { ok: false, text: `Couldn't reach ${server.name} at ${url}. ${server.notRunning}` };
+    return { models: [], error: `Couldn't reach ${server.name} at ${url}. ${server.notRunning}` };
   }
+}
 
-  document.getElementById("model-options").replaceChildren(...models.map((id) => new Option(id, id)));
+async function testLocal(provider) {
+  const server = SERVERS[provider];
+  const lookup = ++lookups[provider];
+  if (settings.provider === provider) renderModelPicker();
+  const found = await detectModels(provider);
+  if (lookup !== lookups[provider]) return { ok: false, stale: true, text: "" };
+  detected[provider] = found;
+
+  const { models, error } = found;
+  const chosen = settings.servers[provider];
+  if (!error && models.length > 0 && !chosen.model.trim()) {
+    chosen.model = models[0];
+    saveSettings();
+  }
+  if (settings.provider === provider) renderModelPicker();
+
+  if (error) return { ok: false, text: error };
   if (models.length === 0) {
     const fix = provider === "ollama" ? "Download one with ollama pull (see the suggestion above)." : "Download one in LM Studio's Discover tab.";
     return { ok: false, text: `Connected to ${server.name}, but it has no models yet. ${fix}` };
   }
-  const chosen = settings.servers[provider];
-  if (!chosen.model.trim()) {
-    chosen.model = models[0];
-    document.getElementById("model-name").value = chosen.model;
-    saveSettings();
-  }
   if (!models.includes(chosen.model.trim())) {
-    return { ok: false, text: `Connected to ${server.name}, but it doesn't have "${chosen.model}". Pick one of: ${models.slice(0, 6).join(", ")}.` };
+    return { ok: false, text: `Connected to ${server.name}, but it doesn't have "${chosen.model}". Pick one from the Model list.` };
   }
   return { ok: true, text: `Connected to ${server.name}. Drafts will use ${chosen.model}.` };
 }
@@ -383,7 +401,11 @@ const form = document.getElementById("model-form");
 const keyInput = document.getElementById("api-key");
 const rememberBox = document.getElementById("remember-key");
 const urlInput = document.getElementById("server-url");
+const modelSelect = document.getElementById("model-select");
 const modelInput = document.getElementById("model-name");
+const modelHelp = document.getElementById("model-help");
+const modelMode = document.getElementById("model-mode");
+const refreshButton = document.getElementById("refresh-models");
 const hardwareSelect = document.getElementById("hardware");
 const statusLine = document.getElementById("connection-status");
 
@@ -447,15 +469,71 @@ function renderRecommendation() {
     const use = el("button", "link-button", `Use ${pick.ollama}`);
     use.type = "button";
     use.addEventListener("click", () => {
-      modelInput.value = pick.ollama;
-      modelInput.dispatchEvent(new Event("input"));
+      onChange(() => (settings.servers.ollama.model = pick.ollama));
+      renderModelPicker();
     });
     actions.append(use);
   } else {
     actions.className = "muted";
-    actions.textContent = "Then press Test connection to pick it from the Model list.";
+    actions.textContent = "Then press Refresh list and pick it from the Model list below.";
   }
   box.replaceChildren(choices, el("p", "", pick.note), how, el("p", "muted", tier.speed), actions);
+}
+
+// True when the user chose to type a model name rather than pick one the server listed.
+let typing = false;
+
+function option(value, text, { disabled = false } = {}) {
+  const node = new Option(text, value);
+  node.disabled = disabled;
+  return node;
+}
+
+/** The Model field: a list of the models the server has, or a text box when it can't list them or the user asked to type. */
+function renderModelPicker() {
+  const provider = settings.provider;
+  if (provider === "claude") return;
+  const server = SERVERS[provider];
+  const found = detected[provider];
+  const saved = settings.servers[provider].model.trim();
+  const checking = lookups[provider] > 0 && (found === null || refreshButton.disabled);
+  const models = found?.models ?? [];
+  const canPick = models.length > 0;
+  const manual = typing || (found !== null && !canPick);
+
+  modelSelect.hidden = manual;
+  modelInput.hidden = !manual;
+  modelMode.hidden = manual ? !canPick : false;
+  modelMode.textContent = manual ? "Pick from the models found instead" : "Type a model name instead";
+  modelInput.placeholder = provider === "ollama" ? "gemma4:12b" : "google/gemma-4-12b";
+  if (document.activeElement !== modelInput) modelInput.value = saved;
+
+  const options = [];
+  if (!found) {
+    options.push(saved ? option(saved, saved) : option("", checking ? "Looking for models..." : "No models found yet", { disabled: true }));
+  } else {
+    if (!saved) options.push(option("", "Pick a model", { disabled: true }));
+    if (saved && !models.includes(saved)) options.push(option(saved, `${saved} (not found in ${server.name})`));
+    options.push(...models.map((id) => option(id, id)));
+  }
+  modelSelect.replaceChildren(...options);
+  modelSelect.value = saved;
+
+  const typeHint = provider === "lmstudio" ? "the model's identifier from LM Studio's Developer tab" : "the name you pulled, like gemma4:12b";
+  if (checking) {
+    modelHelp.textContent = `Looking for the models you've downloaded in ${server.name}...`;
+  } else if (found?.error) {
+    modelHelp.textContent = `Couldn't list ${server.name}'s models. Type ${typeHint}, or fix the connection above and press Refresh list.`;
+  } else if (found && !canPick) {
+    modelHelp.textContent = `${server.name} has no models yet. Download one, then press Refresh list, or type ${typeHint}.`;
+  } else if (manual) {
+    modelHelp.textContent = `Type ${typeHint}.`;
+  } else if (found) {
+    const count = models.length === 1 ? "1 model" : `${models.length} models`;
+    modelHelp.textContent = `${count} found in ${server.name}. Downloaded a new one? Press Refresh list.`;
+  } else {
+    modelHelp.textContent = `Press Refresh list to see the models you've downloaded in ${server.name}.`;
+  }
 }
 
 function renderForm() {
@@ -481,8 +559,7 @@ function renderForm() {
     const server = SERVERS[provider];
     urlInput.value = settings.servers[provider].url;
     urlInput.placeholder = server.url;
-    modelInput.value = settings.servers[provider].model;
-    document.getElementById("model-options").replaceChildren();
+    typing = false;
     const help = document.getElementById("server-url-help");
     help.textContent =
       provider === "lmstudio"
@@ -491,10 +568,7 @@ function renderForm() {
     if (serverModel.hosted) {
       help.textContent += " Your browser may ask whether this site can use devices on your local network: allow it, so the page can reach the model on your computer. Chrome and Edge work best.";
     }
-    document.getElementById("model-help").textContent =
-      provider === "lmstudio"
-        ? "The model's identifier from LM Studio's Developer tab. Test connection lists the ones you've downloaded."
-        : "The name you pulled, like gemma4:12b. Test connection lists the ones you've downloaded.";
+    renderModelPicker();
     renderRecommendation();
   }
   statusLine.textContent = "";
@@ -532,8 +606,35 @@ urlInput.addEventListener("change", () => {
   const problem = urlProblem(serverUrl(settings.provider));
   statusLine.textContent = problem;
   statusLine.className = problem ? "error" : "";
+  // A new address may be a different server with different models.
+  if (!problem) refreshModels();
 });
 modelInput.addEventListener("input", () => onChange(() => (settings.servers[settings.provider].model = modelInput.value)));
+modelInput.addEventListener("change", () => renderModelPicker());
+modelSelect.addEventListener("change", () => onChange(() => (settings.servers[settings.provider].model = modelSelect.value)));
+modelMode.addEventListener("click", () => {
+  typing = modelInput.hidden;
+  renderModelPicker();
+  (typing ? modelInput : modelSelect).focus();
+});
+
+/** Asks the server for its models again and shows what it said. */
+async function refreshModels() {
+  if (settings.provider === "claude") return;
+  refreshButton.disabled = true;
+  refreshButton.textContent = "Refreshing...";
+  statusLine.className = "";
+  statusLine.textContent = "";
+  try {
+    const result = await testLocal(settings.provider);
+    if (!result.stale) showResult(result);
+  } finally {
+    refreshButton.disabled = false;
+    refreshButton.textContent = "Refresh list";
+    renderModelPicker();
+  }
+}
+refreshButton.addEventListener("click", refreshModels);
 hardwareSelect.addEventListener("change", () => {
   onChange(() => (settings.hardware = hardwareSelect.value));
   suggestion = 0;
@@ -546,7 +647,8 @@ testButton.addEventListener("click", async () => {
   statusLine.className = "";
   statusLine.textContent = "Checking...";
   try {
-    showResult(await testConnection());
+    const result = await testConnection();
+    if (!result.stale) showResult(result);
   } finally {
     testButton.disabled = false;
   }
@@ -559,6 +661,7 @@ async function checkQuietly() {
     return;
   }
   const result = await testLocal(settings.provider);
+  if (result.stale) return;
   setStatus(result.ok ? "ok" : "error", result.ok ? summary() : result.text);
   // Show what went wrong if the settings page is open.
   if (!document.getElementById("model-view").hidden) showResult(result);
