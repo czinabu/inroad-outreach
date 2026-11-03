@@ -38,7 +38,7 @@ function loadLibrary() {
   return demoLibrary();
 }
 
-const state = { lib: loadLibrary(), mode: "inside", query: "", openId: null, cursor: 0, contactId: "", said: new Map() };
+const state = { lib: loadLibrary(), mode: "field", query: "", openId: null, cursor: 0, contactId: "", said: new Map() };
 const saved = readStorage(MODE_KEY);
 if (saved === "inside" || saved === "field") state.mode = saved;
 
@@ -113,7 +113,10 @@ function probeBlock(o) {
     if (answer.coach) item.append(el("small", "muted", ` ${answer.coach}`));
     list.append(item);
   }
-  box.append(list);
+  // The replies to each answer wait behind one click, so the line to say stays on screen.
+  const more = el("details", "objection-more");
+  more.append(el("summary", "", `If they answer: ${o.probe.answers.map((a) => a.label).join(" · ")}`), list);
+  box.append(more);
   return box;
 }
 
@@ -183,25 +186,36 @@ function detail(o) {
   head.append(el("p", "objection-group-label", o.group), el("h2", "objection-title", o.title));
   box.append(head);
 
+  // In the order the call goes: ask first if the card has a probe, then the line to say, then the close.
   const body = el("div", "objection-body");
   if (o.note) body.append(el("p", "muted objection-note", o.note));
-  body.append(el("p", "label", rebuttals.length > 1 ? "Say this · tap the line you used" : "Say this"));
-  rebuttals.forEach((r, i) => {
-    const row = el("label", "objection-line");
+  const probe = probeBlock(o);
+  if (probe) body.append(probe);
+
+  // The lead line is big; other lines wait under "Try instead". Whichever is checked is logged with the outcome.
+  const said = state.said.get(o.id) ?? 0;
+  const line = (r, i) => {
+    const row = el("label", i === 0 ? "objection-line lead" : "objection-line");
     const radio = el("input");
     radio.type = "radio";
     radio.name = `said-${o.id}`;
-    radio.checked = (state.said.get(o.id) ?? 0) === i;
+    radio.checked = said === i;
     radio.addEventListener("change", () => state.said.set(o.id, i));
     const text = el("div");
     text.append(scriptNode(r.text));
     if (r.note) text.append(el("small", "muted", r.note));
     row.append(radio, text);
-    body.append(row);
-  });
+    return row;
+  };
+  body.append(el("p", "label", probe ? "Then say" : "Say this"), line(rebuttals[0], 0));
+  if (rebuttals.length > 1) {
+    const more = el("details", "objection-alt");
+    more.open = said > 0;
+    more.append(el("summary", "", `Try instead (${rebuttals.length - 1})`));
+    rebuttals.slice(1).forEach((r, i) => more.append(line(r, i + 1)));
+    body.append(more);
+  }
 
-  const probe = probeBlock(o);
-  if (probe) body.append(probe);
   const close = closeBlock(o);
   if (close) body.append(close);
   box.append(body, outcomeBar(o, rebuttals));
@@ -337,7 +351,7 @@ function renderStats() {
 
 function renderControls() {
   modeEl.replaceChildren(
-    ...["inside", "field"].map((mode) => {
+    ...["field", "inside"].map((mode) => {
       const option = el("option", "", state.lib.modes[mode].name + (state.lib.modes[mode].hint ? ` (${state.lib.modes[mode].hint})` : ""));
       option.value = mode;
       return option;
@@ -502,7 +516,7 @@ document.getElementById("objection-reset").addEventListener("click", () => {
   state.said.clear();
   renderControls();
   render();
-  say("Back to the demo set.");
+  say("Back to the SDR starter set.");
 });
 
 onContactsChange(() => {

@@ -278,15 +278,13 @@
     </header>
     <section class="panel objection-panel">
       <div class="objection-controls">
-        <label>What did they say?
-          <input type="search" id="objection-search" placeholder="price, busy, think about it..." autocomplete="off">
+        <label class="objection-search"><span class="sr-only">What did they say?</span>
+          <input type="search" id="objection-search" placeholder="What did they say? Try price, busy, think..." autocomplete="off">
         </label>
-        <label>Call type
-          <select id="objection-mode"></select>
-        </label>
-        <label>Log calls on
-          <select id="objection-contact"></select>
-        </label>
+        <div class="objection-setup">
+          <label>Call type <select id="objection-mode"></select></label>
+          <label>Log calls on <select id="objection-contact"></select></label>
+        </div>
       </div>
       <p class="error" id="objection-error" role="alert" hidden></p>
       <p class="objection-toast" id="objection-toast" role="status" hidden></p>
@@ -296,7 +294,7 @@
       </div>
       <div class="objection-footer">
         <p class="muted objection-keys" data-guide><kbd>1</kbd>–<kbd>9</kbd> quick picks · <kbd>↑</kbd> <kbd>↓</kbd> move · <kbd>Alt</kbd>+<kbd>1</kbd>–<kbd>9</kbd> pick a match · <kbd>/</kbd> or any letter to search · <kbd>Enter</kbd> stop typing · <kbd>Esc</kbd> clear, again for a new call</p>
-        <p class="muted objection-set">Set: <strong id="objection-set-name"></strong> <button type="button" class="link-button" id="objection-export">Save as file</button> <label class="link-button">Load a set<input type="file" id="objection-import" accept=".json,application/json" hidden></label> <button type="button" class="link-button" id="objection-reset">Reset to demo set</button></p>
+        <p class="muted objection-set">Set: <strong id="objection-set-name"></strong> <button type="button" class="link-button" id="objection-export">Save as file</button> <label class="link-button">Load a set<input type="file" id="objection-import" accept=".json,application/json" hidden></label> <button type="button" class="link-button" id="objection-reset">Reset to starter set</button></p>
       </div>
       <p class="muted" id="objection-status" role="status"></p>
       <details class="objection-stats" id="objection-stats">

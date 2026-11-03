@@ -1,6 +1,7 @@
-// Demo objection library. Generic, original wording with no company names,
-// so the tool can be shown publicly. Load your own set from the Manage panel
-// (Import), or edit cards in the app; changes are saved in your browser only.
+// Default objection library: the objections B2B SDRs hear most on cold calls
+// and in email replies. Generic, original wording with no company names, so
+// the tool can be shown publicly. Load your own set with "Load a set" on the
+// Objections page; it's saved in your browser only.
 //
 // Library shape:
 //   modes        the two call types: { inside: {name, hint}, field: {name, hint} }
@@ -24,208 +25,254 @@
 
 export const DEMO_LIBRARY = {
   version: 1,
-  name: "Demo set",
+  name: "SDR starter set",
   // Quick picks: what 1–9 open before you type anything.
-  pins: ["not-interested", "too-expensive", "partner", "busy", "send-info", "think-about-it", "not-right-time", "competitor", "how-did-you-get-my-number"],
+  pins: ["not-interested", "send-info", "competitor", "busy", "not-right-time", "no-budget", "not-decision-maker", "happy-as-is", "think-about-it"],
   modes: {
-    inside: { name: "Transfer", hint: "live handoff" },
-    field: { name: "Appointment", hint: "book a visit" },
+    inside: { name: "Live transfer", hint: "warm handoff to an AE" },
+    field: { name: "Book a meeting", hint: "calendar invite" },
   },
-  groups: ["Brush-offs", "Price and value", "Timing", "Decision makers", "Trust"],
+  groups: ["Brush-offs", "Budget and value", "Timing and priority", "Decision makers", "Competition and status quo"],
   objections: [
     // ------------------------------------------------------------ Brush-offs
     {
       id: "not-interested",
-      title: "Just not interested",
+      title: "Not interested",
       group: "Brush-offs",
-      cue: "Not asking for a decision, just a quick look at real numbers.",
-      keywords: ["not interested", "interested", "no thanks", "no thank you", "pass", "nope", "im good"],
+      cue: "Ask why before you accept it: covered already, or not a priority?",
+      keywords: ["not interested", "interested", "no thanks", "no thank you", "pass", "nope", "im good", "all set"],
       probe: {
-        ask: "Totally fair. So I can note your file, is it the cost, the timing, or something else?",
+        ask: "Totally fair. Is that because you've already got this covered, or because it's just not a priority right now?",
         answers: [
-          { label: "Cost", text: "Makes sense. That's actually the main thing the specialist walks through, so you can see real numbers instead of guessing." },
-          { label: "Timing", text: "No pressure on timing at all. Let's just get you the details now so you have them whenever you're ready." },
-          { label: "Something else", text: "Fair enough. A quick look costs you nothing, and if it isn't a fit, you'll know for sure." },
+          { label: "Covered", text: "Makes sense. Most teams I talk to have something in place. Out of curiosity, what are you using today, and how's it working?", coach: "Then open the \"We already use someone\" card." },
+          { label: "Not a priority", text: "Understood. What is the priority for your team this quarter? If this doesn't connect to it, I'll get out of your way." },
+          { label: "Just no", text: "No problem. Can I ask one question before I go: how are you handling [the problem you solve] today?" },
         ],
       },
       rebuttals: [
-        { text: "I hear you, and I'm not asking you to decide anything today. You'd asked about this before, so I just want to make sure you saw real numbers before closing the door." },
-        { text: "Can I ask, is it that you're not interested in the idea, or not interested in another sales call? Because this is just a quick review, not a pitch." },
+        { text: "Fair enough, I called out of the blue. Can I take thirty seconds to tell you why I called, and then you can tell me if it's worth another minute?" },
+        { text: "I hear that a lot before people know what this is. Teams like [similar company] said the same, and they ended up [result]. Would it hurt to see how?" },
       ],
     },
     {
       id: "send-info",
-      title: "Just send me something",
+      title: "Just send me an email",
       group: "Brush-offs",
-      cue: "Generic info won't fit them. Two minutes on their details, then it lands in their inbox.",
-      keywords: ["send", "email", "mail", "brochure", "info", "information", "text me", "website"],
+      cue: "Happy to. Ask one question so what you send is worth opening.",
+      keywords: ["send", "email", "mail", "info", "information", "deck", "brochure", "website", "linkedin"],
       rebuttals: [
-        { text: "Happy to. The catch is that anything generic won't tell you much, because the details depend on your situation. Let me get you with a specialist for a few minutes, and what they send will actually apply to you." },
-        { text: "Sure thing. So we send the right thing, let's spend two minutes on your details now, and that's exactly what will land in your inbox." },
+        { text: "Happy to. So I don't send you something generic, what's the biggest headache with [the problem you solve] right now?" },
+        { text: "Sure. Most people tell me that and the email gets buried. How about I send it now and we put fifteen minutes on the calendar to go through it together? You can always cancel." },
       ],
     },
     {
       id: "busy",
-      title: "I'm busy / can't talk right now",
+      title: "I'm busy / bad time",
       group: "Brush-offs",
-      cue: "Keep it to thirty seconds, then the close.",
-      keywords: ["busy", "working", "cant talk", "driving", "bad time", "call back", "meeting", "at work"],
+      cue: "Ask for thirty seconds, or book the callback right now.",
+      keywords: ["busy", "bad time", "cant talk", "in a meeting", "call back", "call me later", "driving", "swamped"],
       rebuttals: [
-        { text: "Understood, I'll be quick. Let me get the specialist on the line to start the conversation, and they can follow up when it suits you better.", mode: "inside" },
-        { text: "No problem, this takes thirty seconds. I just want to get a short visit on the calendar. Does [day] at [time] or [time] work better?", mode: "field" },
+        { text: "I'll be quick. Give me thirty seconds for why I called, and if it's not relevant you can hang up on me." },
+        { text: "Totally understand. Rather than chase you, can we pick a time? Does [day] at [time] or [time] work better for a ten-minute call?" },
       ],
     },
     {
       id: "how-did-you-get-my-number",
-      title: "How did you get my number?",
+      title: "How did you get my info?",
       group: "Brush-offs",
-      cue: "They asked before. Confirm the address, offer to update their file.",
-      keywords: ["number", "how did you get", "never signed up", "didnt request", "who is this", "spam", "list"],
+      cue: "Be honest about the source, then give the reason you reached out to them.",
+      keywords: ["number", "how did you get", "who gave you", "where did you get", "my info", "list", "spam", "who is this"],
       rebuttals: [
-        { text: "Good question. It looks like you or someone at this address asked us about this before. I'm just following up so nobody was left hanging. Are you still at [address]?" },
-        { text: "I understand being careful. If you'd rather not hear from us, I'll update your file right now. Before I do, can I ask whether it's still something you're curious about?" },
+        { text: "Fair question. I found you through [source], and I reached out because you're the [title] at [company] and we work with a lot of teams like yours on [the problem you solve]." },
+        { text: "Good question. If you'd rather I didn't reach out again, I'll take you off my list right now. Before I do, is [the problem you solve] something on your plate at all?" },
+      ],
+    },
+    {
+      id: "sales-call",
+      title: "Is this a sales call?",
+      group: "Brush-offs",
+      cue: "Own it with a smile. Then ask permission for thirty seconds.",
+      keywords: ["sales call", "selling", "sales pitch", "pitch", "cold call", "telemarketer", "salesperson"],
+      rebuttals: [
+        { text: "It is, and I'll be upfront about it. Can I have thirty seconds to tell you why I called you specifically? Then you can decide if we keep talking." },
+        { text: "Guilty. Honestly, though, I'm not trying to sell you anything today. I just want to find out if [the problem you solve] is even an issue for you." },
       ],
     },
 
-    // -------------------------------------------------------- Price and value
+    // -------------------------------------------------------- Budget and value
+    {
+      id: "no-budget",
+      title: "We don't have budget",
+      group: "Budget and value",
+      cue: "Today's meeting costs nothing. Find out when budget gets set.",
+      keywords: ["budget", "no budget", "money", "funding", "cost", "afford", "spend", "frozen", "cuts"],
+      probe: {
+        ask: "Understood. Is it that there's no budget this year, or no budget for this specifically?",
+        answers: [
+          { label: "This year", text: "Makes sense. When does planning for next year start? It's worth seeing this before then so you have the numbers ready." },
+          { label: "For this", text: "Got it. Most of our customers didn't have a line item either. They paid for it out of what it saved on [cost it replaces]." },
+        ],
+      },
+      rebuttals: [
+        { text: "Totally fair, and I'm not asking you to buy anything. This first call is just to see whether there's enough value here to be worth budgeting for." },
+        { text: "That's common. Most teams we work with found the budget once they saw it save [result]. Worth twenty minutes to see if the math works for you?" },
+      ],
+    },
     {
       id: "too-expensive",
-      title: "Too expensive",
-      group: "Price and value",
-      cue: "Price is the first thing the specialist reviews. More options than they expect.",
-      keywords: ["expensive", "price", "cost", "money", "afford", "pricey", "budget", "payment"],
+      title: "It's too expensive",
+      group: "Budget and value",
+      cue: "Expensive compared to what? Steer to the cost of the problem.",
+      keywords: ["expensive", "price", "pricey", "cost too much", "too much", "cheaper", "pricing", "discount"],
       rebuttals: [
-        { text: "That's exactly why I'm calling. If the numbers you saw didn't work, let's get a second set of eyes on them and see what actually fits your budget." },
-        { text: "Totally fair. Price is the first thing a specialist reviews with you, and there are usually more options than people expect." },
+        { text: "I hear you. Compared to what, though? What is [the problem you solve] costing you today in time or lost deals?" },
+        { text: "Fair. Pricing depends a lot on how you'd use it, so the AE can put real numbers in front of you instead of a list price. Worth a look?" },
       ],
     },
     {
-      id: "not-worth-it",
-      title: "It's not worth it",
-      group: "Price and value",
-      cue: "Test it with real numbers. Worst case, they know for sure.",
-      keywords: ["worth", "value", "doesnt work", "waste", "payback", "savings", "pointless"],
+      id: "no-need",
+      title: "We don't need it",
+      group: "Budget and value",
+      cue: "Maybe so. Ask one question that tests it.",
+      keywords: ["dont need", "no need", "not needed", "fine without", "doesnt apply", "not relevant", "not a fit", "no use"],
       rebuttals: [
-        { text: "That really depends on the situation, which is why we look at yours instead of guessing. If it isn't worth it for you, the specialist will tell you." },
-        { text: "Let's put it to the test with real numbers. Worst case, you'll know for sure and won't have to wonder." },
-      ],
-    },
-    {
-      id: "competitor",
-      title: "Going with another company",
-      group: "Price and value",
-      cue: "Comparing is smart. Get a second option to line up side by side.",
-      keywords: ["competitor", "another company", "other company", "went with", "signed", "someone else", "quote"],
-      rebuttals: [
-        { text: "Great, it's smart to compare. Let's get you a second option in hand so you can line them up side by side before you commit." },
+        { text: "You might be right. Can I ask how you're handling [the problem you solve] today? If it's working, I'll tell you we're not a fit." },
+        { text: "Fair. A lot of [title]s told me the same, until they noticed [pain point]. Is that something you ever run into?" },
       ],
     },
 
-    // ----------------------------------------------------------------- Timing
+    // ----------------------------------------------------- Timing and priority
+    {
+      id: "not-right-time",
+      title: "Reach out next quarter",
+      group: "Timing and priority",
+      cue: "Find out what changes then, and lock in the follow-up now.",
+      keywords: ["next quarter", "next year", "later", "timing", "not now", "reach out", "few months", "q1", "q2", "q3", "q4", "after"],
+      rebuttals: [
+        { text: "Happy to. Just so I'm calling at the right moment, what changes next quarter that makes it a better time?" },
+        { text: "Sounds good. Let's put a short call on the calendar for [date] now, so neither of us has to remember. If things change, you can just move it." },
+      ],
+    },
+    {
+      id: "not-a-priority",
+      title: "Not a priority right now",
+      group: "Timing and priority",
+      cue: "Ask what is the priority, and connect to it if you honestly can.",
+      keywords: ["priority", "priorities", "other things", "focused on", "bigger fish", "back burner", "on hold", "too much going on"],
+      rebuttals: [
+        { text: "Understood. What is at the top of the list for your team right now? If this doesn't connect to it, I won't waste your time." },
+        { text: "Makes sense. Most teams we work with weren't prioritizing it either, until they saw it was quietly costing them [result]. Worth twenty minutes to find out if that's true for you?" },
+      ],
+    },
     {
       id: "think-about-it",
       title: "I need to think about it",
-      group: "Timing",
-      cue: "Ask what they'd want to think through. Real numbers make thinking easier.",
-      keywords: ["think", "think about it", "consider", "sleep on it", "decide", "not sure", "mull"],
+      group: "Timing and priority",
+      cue: "Ask what they'd want to think through, then set the next step.",
+      keywords: ["think", "think about it", "consider", "sleep on it", "mull", "not sure", "get back to you"],
       rebuttals: [
-        { text: "Of course. What's the main thing you'd want to think through? I'll make sure the specialist covers it." },
-        { text: "That makes sense. This step just gives you the full picture, so when you do think it over, you're working with real numbers." },
-      ],
-    },
-    {
-      id: "not-right-time",
-      title: "Not the right time",
-      group: "Timing",
-      cue: "No timeline. Get the details ready for when the time is right.",
-      keywords: ["time", "timing", "later", "wait", "next year", "holidays", "not ready", "few months"],
-      rebuttals: [
-        { text: "No timeline from us at all. Let's just go over the details now so you have everything ready when the time is right." },
-        { text: "Understood. Would it help to book something a couple of weeks out, so it's on the calendar without any rush?", mode: "field" },
+        { text: "Of course. What's the main thing you'd want to think through? Maybe I can answer it right now." },
+        { text: "Makes sense. Let's put fifteen minutes on the calendar for later this week, so you have time to think and a set time to ask questions." },
       ],
     },
 
     // -------------------------------------------------------- Decision makers
     {
-      id: "partner",
-      title: "Need to talk to my spouse / partner",
+      id: "not-decision-maker",
+      title: "I'm not the right person",
       group: "Decision makers",
-      cue: "Joint decision. Get real numbers in front of both of them.",
-      keywords: ["spouse", "wife", "husband", "partner", "talk to", "other half", "family"],
-      probe: {
-        ask: "Have they seen any numbers yet?",
-        answers: [
-          { label: "Yes", text: "What part didn't sit well with them?", coach: "Find the real reason, then pick that objection." },
-          { label: "No", text: "Then let's get you real numbers, so you two have something concrete to talk through." },
-        ],
-      },
+      cue: "Ask who is, and whether they'll introduce you.",
+      keywords: ["not the right person", "wrong person", "not my decision", "decision maker", "not me", "someone else", "boss", "manager", "who handles"],
       rebuttals: [
-        { text: "Absolutely, it should be a joint decision. Let's get the information in front of you both so you can review it together, on your own time." },
-        { text: "Makes sense. Is there a time when you're both around? I can book it so you hear it together.", mode: "field" },
+        { text: "Thanks for telling me. Who would be the best person to talk to about [the problem you solve]? Would it be okay if I mention you pointed me their way?" },
+        { text: "No problem. Even if you don't sign off on it, you'd probably use it day to day. Would you be open to joining the call with [decision maker]?" },
       ],
     },
     {
-      id: "not-decision-maker",
-      title: "I'm not the one who decides",
+      id: "run-it-by-team",
+      title: "I have to run it by my team",
       group: "Decision makers",
-      cue: "Fine. Go over it with them, and the specialist loops in the decider.",
-      keywords: ["not my decision", "decision maker", "owner", "not the owner", "boss", "landlord", "parents"],
+      cue: "Great, bring them in. Book the meeting with the team on it.",
+      keywords: ["team", "run it by", "check with", "boss", "partner", "committee", "procurement", "legal", "talk to my"],
       rebuttals: [
-        { text: "No problem. We can go over it with you, and the specialist can loop in whoever makes the call." },
+        { text: "That makes sense. Who else would need to be involved? Let's get a time when they can join, so they hear it firsthand instead of secondhand." },
+        { text: "Totally. What do you think they'll want to know? I'll make sure the AE comes ready to answer it." },
       ],
     },
 
-    // ------------------------------------------------------------------ Trust
+    // --------------------------------------------- Competition and status quo
     {
-      id: "bad-reviews",
-      title: "I've heard bad things / bad reviews",
-      group: "Trust",
-      cue: "Fair concern. This is information only, no commitment.",
-      keywords: ["reviews", "bad", "heard", "online", "reputation", "scam", "complaints"],
+      id: "competitor",
+      title: "We already use someone",
+      group: "Competition and status quo",
+      cue: "Great, they know the problem. Ask what they'd change.",
+      keywords: ["competitor", "already use", "already have", "using", "vendor", "another company", "someone else", "provider", "tool"],
       rebuttals: [
-        { text: "That's a fair concern with any company. Most customers have a good experience, and when someone doesn't, we work to make it right." },
-        { text: "I read reviews too. This is just information, with no commitment, so you can judge it for yourself." },
+        { text: "Good to hear, so you already know the problem is worth solving. What do you like about them, and is there anything you wish worked better?" },
+        { text: "Makes sense. A lot of our customers switched from [competitor] because of [differentiator]. Worth a quick side-by-side before your next renewal?" },
       ],
     },
     {
-      id: "pushy-sales",
-      title: "I don't want a sales pitch",
-      group: "Trust",
-      cue: "No pressure. It's a review of options, and they stay in control.",
-      keywords: ["pushy", "pitch", "salesman", "salesperson", "pressure", "sold", "hard sell"],
+      id: "happy-as-is",
+      title: "We're happy with how things are",
+      group: "Competition and status quo",
+      cue: "Not asking them to change. Just a benchmark to compare against.",
+      keywords: ["happy", "fine", "works for us", "status quo", "good as is", "no problems", "doing ok", "satisfied"],
       rebuttals: [
-        { text: "Totally get it, nobody likes pressure. This is a review of your options, and if it doesn't make sense, the specialist will say so." },
-        { text: "Fair enough. You stay in control the whole time, and looking at the numbers doesn't commit you to anything." },
+        { text: "Glad to hear it, and I'm not asking you to change anything. Most of our customers were happy too. They just wanted to see if they were leaving [result] on the table." },
+        { text: "That's great. If you could change one thing about how you handle [the problem you solve] today, what would it be?" },
       ],
     },
     {
-      id: "already-working",
-      title: "Already working with someone",
-      group: "Trust",
-      cue: "Good to hear. Get their rep back, or someone on the team.",
-      keywords: ["already", "working with", "rep", "consultant", "someone", "have a guy"],
+      id: "in-house",
+      title: "We built something in-house",
+      group: "Competition and status quo",
+      cue: "Respect it. Ask what it costs to keep it running.",
+      keywords: ["in house", "in-house", "built it", "our own", "homegrown", "internal tool", "spreadsheet", "engineers"],
       rebuttals: [
-        { text: "Good to hear. Let me try to get them back on the line, and if they're tied up, I'll connect you with someone on their team.", mode: "inside" },
-        { text: "Great. I can book your next visit with the same person you've been working with.", mode: "field", note: "Assign it to their existing contact." },
+        { text: "Impressive, that's not easy. How much of your team's time goes into keeping it running? Many customers came to us to give that time back." },
+        { text: "Makes sense. Is it doing everything you hoped when you built it, or is there a wishlist that never gets prioritized?" },
+      ],
+    },
+    {
+      id: "under-contract",
+      title: "We're locked into a contract",
+      group: "Competition and status quo",
+      cue: "Ask when it renews. Get on the calendar before then.",
+      keywords: ["contract", "locked in", "signed", "renewal", "agreement", "committed", "multi year", "term"],
+      rebuttals: [
+        { text: "Understood. When does it come up for renewal? Teams usually start comparing options three to six months before, so you have leverage when it does." },
+        { text: "Totally fair. A short look now costs nothing, and you'll know whether it's worth switching when the time comes." },
+      ],
+    },
+    {
+      id: "tried-before",
+      title: "We tried something like this before",
+      group: "Competition and status quo",
+      cue: "Ask what went wrong. That's your opening.",
+      keywords: ["tried", "tried before", "didnt work", "bad experience", "burned", "last time", "failed"],
+      rebuttals: [
+        { text: "Sorry to hear that. What didn't work about it? If we'd have the same problem, I'll tell you." },
+        { text: "That's useful to know. A lot of our customers had been burned before too, which is why we [differentiator]. Worth twenty minutes to see the difference?" },
       ],
     },
   ],
   transitions: {
     inside: {
-      label: "Live transfer to a specialist",
-      close: "Give me about thirty seconds to bring a specialist on the line. If you can, grab a recent bill so they can look at real numbers.",
+      label: "Warm transfer to an account executive",
+      close: "My colleague [AE name] handles these conversations and is free right now. Can I bring them on for ten minutes so you get your questions answered while we're both here?",
       assumptive: [
-        "Perfect, one moment while I connect you.",
-        "Great question for the specialist. Hang on and I'll get them on the line to answer it.",
+        "Great, give me ten seconds to bring [AE name] on.",
+        "That's a great question for [AE name]. Hang on and I'll get them on the line to answer it.",
       ],
     },
     field: {
-      label: "Book an appointment",
-      close: "A specialist can come by on [day] at [time] or [time]. Which works better for you?",
-      confirm: "You're all set for [appointment time]. Have a recent bill handy if you can, and we'll see you then!",
+      label: "Book the meeting",
+      close: "Let's put twenty minutes on the calendar with [AE name] so you can see whether it's a fit. Does [day] at [time] or [time] work better?",
+      confirm: "You're set for [day] at [time]. I'm sending the invite to [email] now. Could you accept it while we're on the phone so it doesn't get buried?",
       assumptive: [
         "Are mornings or afternoons usually better for you?",
-        "Let's put you down for [day] at [time], which gives you a little time first. How does that sound?",
+        "I'll send an invite for [day] at [time]. If it doesn't work, just move it. Sound fair?",
       ],
     },
   },
