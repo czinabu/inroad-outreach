@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { ContactError, ContactStore } from "../public/contact-store.js";
-import { LibraryError, cleanLibrary, cueFor, demoLibrary, exportLibrary, parseLibrary, rebuttalsFor, searchObjections } from "../public/objection-library.js";
+import { LibraryError, cleanLibrary, cueFor, demoLibrary, exportLibrary, objectionStats, parseLibrary, quickPicks, rebuttalsFor, searchObjections } from "../public/objection-library.js";
 import { PLAYBOOKS } from "../server/playbooks.ts";
 
 class MemoryStorage {
@@ -88,4 +88,47 @@ test("logging refuses a bad outcome or a missing prospect", () => {
   const { store, id } = storeWithContact();
   assert.throws(() => store.logObjection(id, { objectionId: "x", title: "x", outcome: "maybe" }), ContactError);
   assert.throws(() => store.logObjection("nope", { objectionId: "x", title: "x", outcome: "won" }), ContactError);
+});
+
+test("undo takes a call back off the history and restores the status it changed", () => {
+  const { store, id } = storeWithContact();
+  const before = store.get(id).activity.length;
+  const entry = store.logObjection(id, { objectionId: "busy", title: "Too busy", outcome: "won" });
+  assert.equal(store.get(id).status, "meeting");
+  store.undoObjection(id, entry.id);
+  const contact = store.get(id);
+  assert.equal(contact.status, "active");
+  assert.equal(contact.objectionCalls.length, 0);
+  assert.equal(contact.activity.length, before);
+  assert.throws(() => store.undoObjection(id, entry.id), ContactError);
+});
+
+test("undo leaves a status the rep changed by hand since", () => {
+  const { store, id } = storeWithContact();
+  const entry = store.logObjection(id, { objectionId: "busy", title: "Too busy", outcome: "won" });
+  store.update(id, { status: "paused" });
+  store.undoObjection(id, entry.id);
+  assert.equal(store.get(id).status, "paused");
+});
+
+test("stats rank objections by how often they come up, and rate a line once it's used twice", () => {
+  const calls = [
+    { objectionId: "price", title: "Price", line: "A", outcome: "won" },
+    { objectionId: "price", title: "Price", line: "A", outcome: "lost" },
+    { objectionId: "price", title: "Price", line: "B", outcome: "won" },
+    { objectionId: "busy", title: "Busy", line: "C", outcome: "lost" },
+  ];
+  const stats = objectionStats(calls);
+  assert.deepEqual(stats.map((o) => [o.id, o.calls, o.wins]), [["price", 3, 2], ["busy", 1, 0]]);
+  assert.deepEqual(stats[0].lines.map((l: { text: string; rate: number | null }) => [l.text, l.rate]), [["A", 0.5], ["B", null]]);
+});
+
+test("quick picks use the set's pins, and imported pins that don't exist are dropped", () => {
+  assert.equal(quickPicks(demoLibrary())[0].id, "not-interested");
+  assert.equal(quickPicks(demoLibrary()).length, 9);
+  const lib = cleanLibrary({ pins: ["b", "gone"], objections: [{ title: "a", rebuttals: [{ text: "x" }] }, { title: "b", rebuttals: [{ text: "y" }] }] });
+  assert.deepEqual(lib.pins, ["b"]);
+  assert.deepEqual(quickPicks(lib).map((o: { id: string }) => o.id), ["b"]);
+  const unpinned = cleanLibrary({ objections: [{ title: "a", rebuttals: [{ text: "x" }] }] });
+  assert.deepEqual(quickPicks(unpinned).map((o: { id: string }) => o.id), ["a"]);
 });

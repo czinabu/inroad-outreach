@@ -289,9 +289,15 @@
         </label>
       </div>
       <p class="error" id="objection-error" role="alert" hidden></p>
+      <p class="objection-toast" id="objection-toast" role="status" hidden></p>
       <div id="objection-results" aria-live="polite"></div>
-      <p class="muted objection-set">Set: <strong id="objection-set-name"></strong>. <button type="button" class="link-button" id="objection-export">Save as file</button> <label class="link-button">Load a set<input type="file" id="objection-import" accept=".json,application/json" hidden></label> <button type="button" class="link-button" id="objection-reset">Reset to demo set</button></p>
+      <p class="muted objection-set">Set: <strong id="objection-set-name"></strong> <button type="button" class="link-button" id="objection-export">Save as file</button> <label class="link-button">Load a set<input type="file" id="objection-import" accept=".json,application/json" hidden></label> <button type="button" class="link-button" id="objection-reset">Reset to demo set</button></p>
       <p class="muted" id="objection-status" role="status"></p>
+      <details class="objection-stats" id="objection-stats">
+        <summary>Stats: most common objections and which lines win</summary>
+        <div class="stats-body"></div>
+      </details>
+      <p class="muted objection-keys" data-guide>Keys: type anywhere to search · <kbd>1</kbd>–<kbd>9</kbd> quick picks · <kbd>↑</kbd> <kbd>↓</kbd> or <kbd>Alt</kbd>+<kbd>1</kbd>–<kbd>9</kbd> through matches · <kbd>Enter</kbd> stop typing · <kbd>Esc</kbd> clear, again for a new call · <kbd>/</kbd> search</p>
     </section>
   </div>
 

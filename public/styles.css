@@ -861,3 +861,24 @@ code { padding: 1px 5px; border: 1px solid var(--border); border-radius: 4px; ba
 .objection-line input[type="radio"] { width: auto; flex: none; padding: 0; box-shadow: none; }
 .objection-set { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline; }
 .objection-set .link-button { margin: 0; }
+.objection-panel kbd {
+  display: inline-block;
+  min-width: 1.4em;
+  padding: 0 4px;
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font: 600 0.75rem/1.5 ui-monospace, monospace;
+  text-align: center;
+}
+.objection-toast { display: flex; gap: 12px; align-items: center; margin: 0 0 12px; padding: 10px 12px; border-radius: var(--radius-sm); background: var(--good-soft); color: var(--good); font-weight: 500; }
+.objection-toast[hidden] { display: none; }
+.objection-toast .link-button { margin: 0; }
+.objection-stats { margin-top: 14px; }
+.objection-stats > summary { cursor: pointer; font-weight: 600; }
+.objection-stats-list { padding-left: 20px; }
+.objection-stats-list > li { margin: 8px 0; }
+.objection-stats-list ul { margin: 4px 0 0; padding-left: 18px; color: var(--text-2); font-size: 0.9rem; }
+.objection-keys { margin-top: 10px; font-size: 0.8rem; }
+.objection-chip kbd, .objection-title kbd { margin-right: 6px; }

@@ -1,14 +1,15 @@
 // The Objections page: type what the prospect said, read the rebuttal and the close, then tap how the call ended.
 // The set is static text kept in this browser (no AI call), so it works offline and answers instantly.
 // The outcome is logged on the chosen prospect's history in the contact store.
-import { contactChoices, logObjectionCall, onContactsChange } from "./contacts.js";
+import { allObjectionCalls, contactChoices, logObjectionCall, onContactsChange, undoObjectionCall } from "./contacts.js";
 import { el } from "./dom.js";
-import { cueFor, demoLibrary, exportLibrary, parseLibrary, rebuttalsFor, searchObjections } from "./objection-library.js";
+import { cueFor, demoLibrary, exportLibrary, objectionStats, parseLibrary, quickPicks, rebuttalsFor, searchObjections } from "./objection-library.js";
 import { today } from "./contact-store.js";
 
 const LIBRARY_KEY = "sdr-outreach:objections";
 const MODE_KEY = "sdr-outreach:objection-mode";
 const MAX_MATCHES = 5;
+const UNDO_MS = 8000;
 
 function readStorage(key) {
   try {
@@ -37,7 +38,7 @@ function loadLibrary() {
   return demoLibrary();
 }
 
-const state = { lib: loadLibrary(), mode: "inside", query: "", openId: null, contactId: "", said: new Map() };
+const state = { lib: loadLibrary(), mode: "inside", query: "", openId: null, cursor: 0, contactId: "", said: new Map() };
 const saved = readStorage(MODE_KEY);
 if (saved === "inside" || saved === "field") state.mode = saved;
 
@@ -48,6 +49,10 @@ const resultsEl = document.getElementById("objection-results");
 const statusEl = document.getElementById("objection-status");
 const errorEl = document.getElementById("objection-error");
 const setNameEl = document.getElementById("objection-set-name");
+const toastEl = document.getElementById("objection-toast");
+const statsEl = document.getElementById("objection-stats");
+const viewEl = document.getElementById("objections-view");
+let toastTimer = 0;
 
 function say(message, isError = false) {
   statusEl.textContent = isError ? "" : message;
@@ -134,13 +139,12 @@ function outcomeBar(o, rebuttals) {
       return;
     }
     const line = rebuttals[state.said.get(o.id) ?? 0];
+    const contactId = state.contactId;
     try {
-      logObjectionCall(state.contactId, { objectionId: o.id, title: o.title, line: line?.text ?? "", outcome, mode });
-      note.textContent = `Logged: ${outcome === "won" ? win.textContent : "Lost"}. It's on their history.`;
-      win.disabled = lose.disabled = true;
-      setTimeout(() => {
-        win.disabled = lose.disabled = false;
-      }, 1500);
+      const entry = logObjectionCall(contactId, { objectionId: o.id, title: o.title, line: line?.text ?? "", outcome, mode });
+      const label = outcome === "won" ? win.textContent : "Lost";
+      newCall();
+      showToast(`Logged ${label} · ${o.title}`, () => undoObjectionCall(contactId, entry.id));
     } catch (error) {
       note.textContent = error.message;
     }
@@ -150,13 +154,35 @@ function outcomeBar(o, rebuttals) {
   return bar;
 }
 
-function card(o, { open }) {
+// After a call is logged the page resets for the next one, and Undo stays up for a few seconds in case of a mis-tap.
+function showToast(text, undo) {
+  clearTimeout(toastTimer);
+  const button = el("button", "link-button", "Undo");
+  button.type = "button";
+  button.addEventListener("click", () => {
+    clearTimeout(toastTimer);
+    try {
+      undo();
+      toastEl.replaceChildren("Undone.");
+    } catch (error) {
+      toastEl.replaceChildren(error.message);
+    }
+    toastTimer = setTimeout(() => (toastEl.hidden = true), 2000);
+  });
+  toastEl.replaceChildren(el("span", "", text), button);
+  toastEl.hidden = false;
+  toastTimer = setTimeout(() => (toastEl.hidden = true), UNDO_MS);
+}
+
+function card(o, { open, number }) {
   const mode = o.forceMode ?? state.mode;
   const rebuttals = rebuttalsFor(o, mode);
   const box = el("details", "objection-card");
   box.open = open;
   const summary = el("summary");
-  summary.append(el("span", "objection-title", o.title), el("span", "objection-cue", cueFor(o, rebuttals[0])));
+  const title = el("span", "objection-title", o.title);
+  if (number) title.prepend(el("kbd", "", String(number)));
+  summary.append(title, el("span", "objection-cue", cueFor(o, rebuttals[0])));
   box.append(summary);
 
   const body = el("div", "objection-body");
@@ -195,7 +221,18 @@ function renderResults() {
       resultsEl.append(el("p", "muted", `Nothing matches "${state.query.trim()}". Try one word from what they said, like price, busy or think.`));
       return;
     }
-    matches.slice(0, MAX_MATCHES).forEach((o, i) => resultsEl.append(card(o, { open: i === 0 })));
+    state.cursor = Math.min(state.cursor, Math.min(matches.length, MAX_MATCHES) - 1);
+    matches.slice(0, MAX_MATCHES).forEach((o, i) => {
+      const c = card(o, { open: i === state.cursor, number: matches.length > 1 ? i + 1 : 0 });
+      // Opening one match closes the others, so the card in view is the one that gets logged.
+      c.addEventListener("toggle", () => {
+        if (c.open && state.cursor !== i) {
+          state.cursor = i;
+          renderResults();
+        }
+      });
+      resultsEl.append(c);
+    });
     return;
   }
   if (state.openId) {
@@ -211,6 +248,21 @@ function renderResults() {
       return;
     }
   }
+  const picks = quickPicks(lib);
+  if (picks.length) {
+    const section = el("section", "objection-group");
+    section.append(el("h3", "", "Quick picks (press 1–9)"));
+    const row = el("div", "objection-chips");
+    picks.forEach((o, i) => {
+      const chip = el("button", "objection-chip", o.title);
+      chip.prepend(el("kbd", "", String(i + 1)));
+      chip.type = "button";
+      chip.addEventListener("click", () => openObjection(o.id));
+      row.append(chip);
+    });
+    section.append(row);
+    resultsEl.append(section);
+  }
   for (const group of lib.groups) {
     const items = lib.objections.filter((o) => o.group === group);
     if (!items.length) continue;
@@ -220,16 +272,41 @@ function renderResults() {
     for (const o of items) {
       const chip = el("button", "objection-chip", o.title);
       chip.type = "button";
-      chip.addEventListener("click", () => {
-        state.openId = o.id;
-        renderResults();
-        window.scrollTo({ top: 0 });
-      });
+      chip.addEventListener("click", () => openObjection(o.id));
       row.append(chip);
     }
     section.append(row);
     resultsEl.append(section);
   }
+}
+
+function openObjection(id) {
+  state.openId = id;
+  renderResults();
+  viewEl.scrollIntoView({ block: "start" });
+}
+
+function renderStats() {
+  if (!statsEl.open) return;
+  const body = statsEl.querySelector(".stats-body");
+  const stats = objectionStats(allObjectionCalls());
+  if (!stats.length) {
+    body.replaceChildren(el("p", "muted", "No calls logged yet. Pick a prospect, open an objection and tap how the call ended."));
+    return;
+  }
+  const list = el("ol", "objection-stats-list");
+  for (const o of stats) {
+    const item = el("li");
+    item.append(el("strong", "", o.title), el("span", "muted", ` ${o.calls} call${o.calls === 1 ? "" : "s"}, ${o.wins} won`));
+    const lines = el("ul");
+    for (const l of o.lines) {
+      const rate = l.rate === null ? `used once` : `${Math.round(l.rate * 100)}% won of ${l.uses}`;
+      lines.append(el("li", "", `${rate}: ${l.text.length > 90 ? `${l.text.slice(0, 87)}…` : l.text}`));
+    }
+    if (o.lines.length) item.append(lines);
+    list.append(item);
+  }
+  body.replaceChildren(list);
 }
 
 function renderControls() {
@@ -263,8 +340,72 @@ function renderContactChoices() {
 searchEl.addEventListener("input", () => {
   state.query = searchEl.value;
   state.openId = null;
+  state.cursor = 0;
   renderResults();
 });
+
+// Keyboard, for reps on a live call: type anywhere to search, 1–9 quick picks, ↑ ↓ or Alt+1–9 through matches,
+// Enter to stop typing and read, Esc to clear and Esc again for a new call, / to jump back to the search.
+document.addEventListener("keydown", (event) => {
+  if (viewEl.hidden || event.ctrlKey || event.metaKey) return;
+  const target = /** @type {HTMLElement} */ (event.target);
+  const inSearch = target === searchEl;
+  const radio = target instanceof HTMLInputElement && target.type === "radio";
+  if (!inSearch && !radio && /^(INPUT|SELECT|TEXTAREA)$/.test(target.tagName)) return;
+  if (radio && event.key.startsWith("Arrow")) return;
+  const matchCount = Math.min(searchObjections(state.lib, state.query).length, MAX_MATCHES);
+
+  if (event.key === "Escape") {
+    event.preventDefault();
+    if (state.query || state.openId) {
+      state.query = searchEl.value = "";
+      state.openId = null;
+      state.cursor = 0;
+      renderResults();
+      searchEl.focus({ preventScroll: true });
+    } else newCall();
+    return;
+  }
+  if (event.altKey && /^Digit[1-9]$/.test(event.code)) {
+    const n = Number(event.code.slice(5)) - 1;
+    if (n < matchCount) {
+      event.preventDefault();
+      state.cursor = n;
+      renderResults();
+    }
+    return;
+  }
+  if ((event.key === "ArrowDown" || event.key === "ArrowUp") && matchCount > 1 && (inSearch || !target.closest("details"))) {
+    event.preventDefault();
+    state.cursor = (state.cursor + (event.key === "ArrowDown" ? 1 : matchCount - 1)) % matchCount;
+    renderResults();
+    return;
+  }
+  if (inSearch) {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      searchEl.blur();
+    }
+    return;
+  }
+  if (event.altKey) return;
+  if (event.key === "/") {
+    event.preventDefault();
+    searchEl.focus();
+    return;
+  }
+  if (/^[1-9]$/.test(event.key) && !state.query) {
+    const pick = quickPicks(state.lib)[Number(event.key) - 1];
+    if (pick) {
+      event.preventDefault();
+      openObjection(pick.id);
+    }
+    return;
+  }
+  // Any letter starts a search, wherever the focus is on this page.
+  if (event.key.length === 1 && /[a-z]/i.test(event.key)) searchEl.focus({ preventScroll: true });
+});
+
 modeEl.addEventListener("change", () => {
   state.mode = modeEl.value;
   writeStorage(MODE_KEY, state.mode);
@@ -273,15 +414,18 @@ modeEl.addEventListener("change", () => {
 contactEl.addEventListener("change", () => {
   state.contactId = contactEl.value;
 });
-document.getElementById("objection-new-call").addEventListener("click", () => {
+function newCall() {
   state.query = "";
   state.openId = null;
+  state.cursor = 0;
   state.said.clear();
   searchEl.value = "";
   say("");
   renderResults();
-  searchEl.focus();
-});
+  searchEl.focus({ preventScroll: true });
+}
+document.getElementById("objection-new-call").addEventListener("click", newCall);
+statsEl.addEventListener("toggle", renderStats);
 
 document.getElementById("objection-export").addEventListener("click", () => {
   download(`objections-${today()}.json`, "application/json", exportLibrary(state.lib));
@@ -320,7 +464,10 @@ document.getElementById("objection-reset").addEventListener("click", () => {
   say("Back to the demo set.");
 });
 
-onContactsChange(renderContactChoices);
+onContactsChange(() => {
+  renderContactChoices();
+  renderStats();
+});
 
 /** Called when the Objections view is shown. */
 export function showObjections() {

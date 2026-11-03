@@ -77,6 +77,11 @@ export function cleanLibrary(raw) {
     }
     lib.objections.push(item);
   }
+  if (Array.isArray(raw.pins)) {
+    const ids = new Set(lib.objections.map((o) => o.id));
+    const pins = raw.pins.filter((p) => typeof p === "string" && ids.has(p));
+    if (pins.length) lib.pins = pins.slice(0, 9);
+  }
   if (!lib.objections.length) throw new LibraryError("The file has no objections with a title and at least one rebuttal.");
   for (const o of lib.objections) if (!lib.groups.includes(o.group)) lib.groups.push(o.group);
   return lib;
@@ -158,4 +163,38 @@ export function cueFor(objection, rebuttal) {
   const text = rebuttal.text.replace(/\s+/g, " ");
   const first = (text.match(/^.*?[.!?](?=\s|$)/) ?? [text])[0];
   return first.length > 110 ? `${first.slice(0, 107).replace(/\s+\S*$/, "")}…` : first;
+}
+
+// --- Stats -------------------------------------------------------------------
+
+/** How often each objection came up and how each rebuttal did. A rebuttal's win rate only counts once it's been used twice. */
+export function objectionStats(calls) {
+  /** @type {Map<string, any>} */
+  const byObjection = new Map();
+  for (const call of calls) {
+    const o = byObjection.get(call.objectionId) ?? { id: call.objectionId, title: call.title, calls: 0, wins: 0, lines: new Map() };
+    o.calls++;
+    if (call.outcome === "won") o.wins++;
+    if (call.line) {
+      const line = o.lines.get(call.line) ?? { text: call.line, uses: 0, wins: 0 };
+      line.uses++;
+      if (call.outcome === "won") line.wins++;
+      o.lines.set(call.line, line);
+    }
+    byObjection.set(call.objectionId, o);
+  }
+  return [...byObjection.values()]
+    .sort((a, b) => b.calls - a.calls)
+    .map((o) => ({
+      ...o,
+      lines: [...o.lines.values()]
+        .map((l) => ({ ...l, rate: l.uses >= 2 ? l.wins / l.uses : null }))
+        .sort((a, b) => (b.rate ?? -1) - (a.rate ?? -1) || b.uses - a.uses),
+    }));
+}
+
+/** The objections a rep reaches with 1–9 before typing: the set's own pins, else the first nine. */
+export function quickPicks(lib) {
+  const pinned = (Array.isArray(lib.pins) ? lib.pins : []).map((id) => lib.objections.find((o) => o.id === id)).filter(Boolean);
+  return (pinned.length ? pinned : lib.objections).slice(0, 9);
 }

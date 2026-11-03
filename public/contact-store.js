@@ -224,16 +224,29 @@ export class ContactStore {
     if (outcome !== "won" && outcome !== "lost") throw new ContactError("The outcome must be won or lost.");
     const contact = this.get(id);
     const now = this.#now().toISOString();
-    const entry = { id: newId(), at: now, objectionId: String(objectionId).slice(0, 200), title: String(title).slice(0, 200), line: String(line).slice(0, 300), mode, outcome };
+    const entry = { id: newId(), at: now, objectionId: String(objectionId).slice(0, 200), title: String(title).slice(0, 200), line: String(line).slice(0, 300), mode, outcome, statusBefore: contact.status };
     (contact.objectionCalls ??= []).push(entry);
-    contact.activity.push({ at: now, text: `Call: "${entry.title}", ${outcome === "won" ? "won" : "lost"}${entry.line ? ` (said: ${entry.line.slice(0, 80)})` : ""}` });
+    contact.activity.push({ at: now, callId: entry.id, text: `Call: "${entry.title}", ${outcome === "won" ? "won" : "lost"}${entry.line ? ` (said: ${entry.line.slice(0, 80)})` : ""}` });
     if (outcome === "won" && (contact.status === "active" || contact.status === "replied")) {
       contact.status = "meeting";
-      contact.activity.push({ at: now, text: `Status: ${STATUSES.meeting}` });
+      contact.activity.push({ at: now, callId: entry.id, text: `Status: ${STATUSES.meeting}` });
     }
     contact.updatedAt = now;
     this.#save();
     return entry;
+  }
+
+  /** Takes back a logged call, for a mis-tap: removes it and its history lines, and puts the status back if the call changed it. */
+  undoObjection(id, callId) {
+    const contact = this.get(id);
+    const entry = contact.objectionCalls?.find((c) => c.id === callId);
+    if (!entry) throw new ContactError("That call isn't on their history any more.");
+    contact.objectionCalls = contact.objectionCalls.filter((c) => c !== entry);
+    const changedStatus = contact.activity.some((a) => a.callId === callId && a.text.startsWith("Status:"));
+    contact.activity = contact.activity.filter((a) => a.callId !== callId);
+    if (changedStatus && contact.status === "meeting") contact.status = entry.statusBefore;
+    contact.updatedAt = this.#now().toISOString();
+    this.#save();
   }
 
   delete(id) {

@@ -25,6 +25,8 @@
 export const DEMO_LIBRARY = {
   version: 1,
   name: "Demo set",
+  // Quick picks: what 1–9 open before you type anything.
+  pins: ["not-interested", "too-expensive", "partner", "busy", "send-info", "think-about-it", "not-right-time", "competitor", "how-did-you-get-my-number"],
   modes: {
     inside: { name: "Transfer", hint: "live handoff" },
     field: { name: "Appointment", hint: "book a visit" },

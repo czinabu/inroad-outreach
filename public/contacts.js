@@ -124,6 +124,16 @@ export function logObjectionCall(id, call) {
   return entry;
 }
 
+export function undoObjectionCall(id, callId) {
+  store.undoObjection(id, callId);
+  refresh();
+}
+
+/** Every logged objection call across all contacts, for the Objections page's stats. */
+export function allObjectionCalls() {
+  return state.contacts.flatMap((c) => c.objectionCalls ?? []);
+}
+
 /** Saved contacts, by name, for the Objections page's prospect picker. */
 export function contactChoices() {
   return state.contacts
