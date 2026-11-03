@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { DraftError, OutreachDrafts, SYSTEM_PROMPT, buildUserPrompt, type DraftGenerator, type DraftRequest } from "./drafts.ts";
+import { DraftError, OutreachDrafts, draftsJob, type DraftGenerator, type DraftRequest, type ModelJob } from "./drafts.ts";
 
 export type LocalModelConfig = {
   /** Base URL of an OpenAI-compatible API, e.g. http://localhost:11434/v1 for Ollama. */
@@ -8,13 +8,13 @@ export type LocalModelConfig = {
   apiKey?: string;
 };
 
-const draftsJsonSchema = z.toJSONSchema(OutreachDrafts);
-
 // Small local models follow the schema more reliably when it is also spelled out in the prompt.
-const LOCAL_SYSTEM_PROMPT = `${SYSTEM_PROMPT}
+function localSystemPrompt(job: ModelJob<z.ZodType>, jsonSchema: unknown) {
+  return `${job.system}
 
 Reply with a single JSON object and nothing else. It must match this JSON schema:
-${JSON.stringify(draftsJsonSchema)}`;
+${JSON.stringify(jsonSchema)}`;
+}
 
 export const BAD_FORMAT = "The local model's reply wasn't in the expected format. Try again, or switch to a larger model.";
 
@@ -23,34 +23,41 @@ const ChatCompletion = z.object({
 });
 
 /**
- * The chat completions request body for these drafts, without the model name. The server sends it itself,
+ * The chat completions request body for a job, without the model name. The server sends it itself,
  * and the Model settings page sends it straight from the browser to LM Studio or Ollama.
  */
-export function localChatRequest(input: DraftRequest) {
+export function localJobRequest(job: ModelJob<z.ZodType>, name = "outreach_drafts") {
+  const jsonSchema = z.toJSONSchema(job.schema);
   return {
     stream: false,
     messages: [
-      { role: "system", content: LOCAL_SYSTEM_PROMPT },
-      { role: "user", content: buildUserPrompt(input) },
+      { role: "system", content: localSystemPrompt(job, jsonSchema) },
+      { role: "user", content: job.user },
     ],
-    response_format: {
-      type: "json_schema",
-      json_schema: { name: "outreach_drafts", schema: draftsJsonSchema },
-    },
+    response_format: { type: "json_schema", json_schema: { name, schema: jsonSchema } },
   };
+}
+
+export function localChatRequest(input: DraftRequest) {
+  return localJobRequest(draftsJob(input));
+}
+
+/** The reply as the job's schema, or null if it isn't valid JSON in that shape. */
+export function parseReply<S extends z.ZodType>(schema: S, content: string): z.infer<S> | null {
+  const parsed = schema.safeParse(parseJson(content));
+  return parsed.success ? parsed.data : null;
 }
 
 /** The drafts in a local model's reply, or null if the reply isn't valid drafts JSON. */
 export function parseDrafts(content: string): OutreachDrafts | null {
-  const drafts = OutreachDrafts.safeParse(parseJson(content));
-  return drafts.success ? drafts.data : null;
+  return parseReply(OutreachDrafts, content);
 }
 
-/** Drafts outreach with a local or self-hosted model (Ollama, Open WebUI, LM Studio) over the OpenAI chat completions API. */
-export function localModelGenerator(config: LocalModelConfig, fetchImpl: typeof fetch = fetch): DraftGenerator {
+/** Runs jobs with a local or self-hosted model (Ollama, Open WebUI, LM Studio) over the OpenAI chat completions API. */
+export function localRunner(config: LocalModelConfig, fetchImpl: typeof fetch = fetch) {
   const url = `${config.baseUrl.replace(/\/+$/, "")}/chat/completions`;
 
-  return async (input) => {
+  return async <S extends z.ZodType>(job: ModelJob<S>, name?: string): Promise<z.infer<S>> => {
     let response: Response;
     try {
       response = await fetchImpl(url, {
@@ -59,7 +66,7 @@ export function localModelGenerator(config: LocalModelConfig, fetchImpl: typeof 
           "Content-Type": "application/json",
           ...(config.apiKey ? { Authorization: `Bearer ${config.apiKey}` } : {}),
         },
-        body: JSON.stringify({ model: config.model, ...localChatRequest(input) }),
+        body: JSON.stringify({ model: config.model, ...localJobRequest(job, name) }),
       });
     } catch {
       throw new DraftError(`Couldn't reach your local AI at ${config.baseUrl}. Make sure Ollama (or your AI server) is running.`);
@@ -78,10 +85,16 @@ export function localModelGenerator(config: LocalModelConfig, fetchImpl: typeof 
 
     const completion = ChatCompletion.safeParse(await response.json());
     const content = completion.success ? completion.data.choices[0].message.content : null;
-    const drafts = content ? parseDrafts(content) : null;
-    if (!drafts) throw new DraftError(BAD_FORMAT);
-    return drafts;
+    const result = content ? parseReply(job.schema, content) : null;
+    if (!result) throw new DraftError(BAD_FORMAT);
+    return result;
   };
+}
+
+/** Drafts outreach with a local or self-hosted model over the OpenAI chat completions API. */
+export function localModelGenerator(config: LocalModelConfig, fetchImpl: typeof fetch = fetch): DraftGenerator {
+  const run = localRunner(config, fetchImpl);
+  return (input) => run(draftsJob(input));
 }
 
 function parseJson(text: string): unknown {

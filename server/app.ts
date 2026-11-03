@@ -3,11 +3,12 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
-import { DraftError, ProspectInput, claudeRequest, type DraftGenerator, type DraftRequest } from "./drafts.ts";
+import { DraftError, ProspectInput, claudeJobRequest, claudeRequest, type DraftGenerator, type DraftRequest } from "./drafts.ts";
 import { AttachmentError, readAttachment } from "./attachment.ts";
-import { BAD_FORMAT, localChatRequest, parseDrafts } from "./local.ts";
+import { BAD_FORMAT, localChatRequest, localJobRequest, parseDrafts, parseReply } from "./local.ts";
 import { PLAYBOOKS, playbookFor } from "./playbooks.ts";
 import { SECURITY_HEADERS } from "./security.ts";
+import { StepDraft, StepInput, stepJob, type StepGenerator } from "./steps.ts";
 import { WebsiteError, readWebsite } from "./website.ts";
 
 const rootDir = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -30,7 +31,11 @@ export type AppOptions = {
    */
   hosted?: boolean;
   legacyContactsFile?: string;
+  /** Drafts a follow-up step with the server's own model. Without one, the browser calls the model itself. */
+  generateStep?: StepGenerator;
 };
+
+const NO_SERVER_MODEL = "Pick a model first: open Model settings and add your Anthropic API key, or choose LM Studio or Ollama.";
 
 // Vercel functions refuse request bodies over 4.5 MB, so a hosted copy takes smaller files.
 export const HOSTED_MAX_FILE_BYTES = 3 * 1024 * 1024;
@@ -96,7 +101,14 @@ function playbookExtras(industry: string) {
 }
 
 export function createApp(generateDrafts: DraftGenerator, fetchWebsite: typeof readWebsite = readWebsite, options: AppOptions = {}) {
-  const { serverModel = { provider: "claude", hasApiKey: false }, hosted = false, legacyContactsFile = LEGACY_CONTACTS_FILE } = options;
+  const {
+    serverModel = { provider: "claude", hasApiKey: false },
+    hosted = false,
+    legacyContactsFile = LEGACY_CONTACTS_FILE,
+    generateStep = async () => {
+      throw new DraftError(NO_SERVER_MODEL, 400);
+    },
+  } = options;
   const app = express();
   app.disable("x-powered-by");
   // Vercel sits in front of the app, so the visitor's address is in X-Forwarded-For.
@@ -114,7 +126,10 @@ export function createApp(generateDrafts: DraftGenerator, fetchWebsite: typeof r
   });
   // Large enough for the biggest allowed attachment once base64-encoded.
   app.use(express.json({ limit: hosted ? "4.5mb" : "15mb" }));
-  if (hosted) app.use("/api/drafts", rateLimit(20, 60_000));
+  if (hosted) {
+    app.use("/api/drafts", rateLimit(20, 60_000));
+    app.use("/api/steps", rateLimit(40, 60_000));
+  }
   app.use(express.static(publicDir));
 
   app.get("/api/industries", (_req, res) => {
@@ -172,6 +187,49 @@ export function createApp(generateDrafts: DraftGenerator, fetchWebsite: typeof r
       return;
     }
     res.json({ ...drafts, ...playbookExtras(parsed.data.industry) });
+  });
+
+  // Follow-up steps: drafted one at a time as they come due, with the same three routes as first-touch drafts.
+  app.post("/api/steps", async (req, res) => {
+    const parsed = StepInput.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: issues(parsed.error) });
+      return;
+    }
+    try {
+      res.json(await generateStep(parsed.data));
+    } catch (error) {
+      if (error instanceof DraftError) {
+        res.status(error.status).json({ error: error.message });
+      } else {
+        console.error(error);
+        res.status(502).json({ error: "Something went wrong while drafting. Try again." });
+      }
+    }
+  });
+
+  app.post("/api/steps/prompt", (req, res) => {
+    const parsed = StepInput.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: issues(parsed.error) });
+      return;
+    }
+    const job = stepJob(parsed.data);
+    res.json({ claude: claudeJobRequest(job), local: localJobRequest(job, "step_draft") });
+  });
+
+  app.post("/api/steps/parse", (req, res) => {
+    const parsed = ModelReply.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: issues(parsed.error) });
+      return;
+    }
+    const draft = parseReply(StepDraft, parsed.data.content);
+    if (!draft) {
+      res.status(422).json({ error: BAD_FORMAT });
+      return;
+    }
+    res.json(draft);
   });
 
   // Contacts saved by older versions, so the page can move them into the browser once. Never on a public copy.

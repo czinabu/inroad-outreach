@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { beforeEach, test } from "node:test";
-import { ContactError, ContactStore, contactsCsv, nextFollowUp, today, withSchedule } from "../public/contact-store.js";
+import { ContactError, ContactStore, contactsCsv, doneOn, dueQueue, nextFollowUp, stepDraftFor, stepRequest, today, withSchedule } from "../public/contact-store.js";
 import type { OutreachDrafts } from "../server/drafts.ts";
 import { PLAYBOOKS } from "../server/playbooks.ts";
 
@@ -169,4 +169,70 @@ test("today() uses the local date, not UTC", () => {
 test("CSV of an empty list is just the header", () => {
   assert.equal(contactsCsv([]).split("\r\n").filter(Boolean).length, 1);
   assert.equal(nextFollowUp({ status: "paused" } as never), null);
+});
+
+// --- Follow-up step drafts and the Today queue ---------------------------------
+
+test("the first email, call and LinkedIn steps use the first-touch drafts; later ones need their own", () => {
+  const { contact } = store.save(prospect, drafts, healthcare);
+  // Healthcare: Email, LinkedIn, Phone, Email, Phone, LinkedIn, Email.
+  assert.equal(stepDraftFor(contact, 0)?.subject, "Second location");
+  assert.equal(stepDraftFor(contact, 0)?.source, "first");
+  assert.equal(stepDraftFor(contact, 1)?.message, "Hi Dana");
+  assert.equal(stepDraftFor(contact, 2)?.voicemail, "Hi Dana");
+  assert.deepEqual(stepDraftFor(contact, 2)?.talkingPoints, ["How do you handle no-shows?"]);
+  assert.equal(stepDraftFor(contact, 3), null, "the day 8 reply is written when it comes due");
+  assert.equal(stepDraftFor(contact, 5)?.message, "Thanks for connecting", "the second LinkedIn step is the message after they accept");
+  assert.equal(stepDraftFor(contact, 6), null);
+});
+
+test("a saved step draft is kept on the step, logged, and wins over the first-touch draft", () => {
+  const { contact } = store.save(prospect, drafts, healthcare);
+  store.saveStepDraft(contact.id, 3, { subject: "Re: Second location", message: "One more idea", voicemail: "", talkingPoints: [], why: "New angle." });
+  const updated = saved(contact.id);
+  assert.equal(stepDraftFor(updated, 3)?.message, "One more idea");
+  assert.equal(stepDraftFor(updated, 3)?.source, "step");
+  assert.ok(updated.sequence[3].draft.createdAt);
+  assert.equal(updated.activity.at(-1)!.text, "Drafted: Day 8 Email");
+  assert.throws(() => store.saveStepDraft(contact.id, 99, { message: "x" }), ContactError);
+});
+
+test("a step request carries the SDR, the first touch and earlier follow-ups", () => {
+  const { contact } = store.save(prospect, drafts, healthcare);
+  store.saveStepDraft(contact.id, 3, { subject: "Re: Second location", message: "One more idea", voicemail: "", talkingPoints: [], why: "" });
+  const request = stepRequest(store.get(contact.id), 4, { yourName: "Caleb", yourOffer: "Scheduling", goal: "", tone: "" });
+  assert.equal(request.touch, 5);
+  assert.equal(request.totalTouches, healthcare.length);
+  assert.deepEqual(request.step, { day: 12, channel: "Phone", action: healthcare[4].action });
+  assert.equal(request.tone, "friendly");
+  assert.equal(request.firstTouch?.emailSubject, "Second location");
+  assert.deepEqual(request.earlier, [{ day: 8, channel: "Email", text: "Re: Second location\nOne more idea" }]);
+});
+
+test("the Today queue lists who's due, most overdue first, and leaves out finished or paused contacts", () => {
+  const dana = store.save(prospect, drafts, healthcare).contact;
+  const sam = store.save({ ...prospect, prospectName: "Sam Ortiz" }, drafts, healthcare).contact;
+  const paused = store.save({ ...prospect, prospectName: "Pat Kim" }, drafts, healthcare).contact;
+  store.update(sam.id, { sequenceStart: "2026-10-20" });
+  store.update(paused.id, { status: "paused" });
+
+  const queue = dueQueue(store.list(), "2026-10-29");
+  assert.deepEqual(
+    queue.map((q: { contact: { prospectName: string } }) => q.contact.prospectName),
+    ["Sam Ortiz", "Dana Lee"],
+  );
+  assert.equal(queue[1].index, 0);
+  assert.equal(queue[0].due, "2026-10-20");
+
+  store.update(dana.id, { step: { index: 0, done: true } });
+  assert.deepEqual(dueQueue(store.list(), "2026-10-29").map((q: { contact: { prospectName: string } }) => q.contact.prospectName), ["Sam Ortiz"]);
+  assert.equal(doneOn(store.list(), "2026-10-29"), 1);
+});
+
+test("a follow-up date set after the sequence is finished still shows up, with no step", () => {
+  const { contact } = store.save(prospect, drafts, healthcare.slice(0, 1));
+  store.update(contact.id, { step: { index: 0, done: true } });
+  store.update(contact.id, { followUpDate: "2026-10-29" });
+  const [item] = dueQueue(store.list(), "2026-10-29");
+  assert.equal(item.index, -1);
 });

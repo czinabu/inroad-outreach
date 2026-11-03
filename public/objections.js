@@ -525,8 +525,9 @@ onContactsChange(() => {
   if (!resultsEl.querySelector(".objection-card")) render();
 });
 
-/** Called when the Objections view is shown. */
-export function showObjections() {
+/** Called when the Objections view is shown. contactId, if given, is who to log calls on. */
+export function showObjections(contactId) {
+  if (contactId) state.contactId = contactId;
   renderContactChoices();
   searchEl.focus({ preventScroll: true });
 }

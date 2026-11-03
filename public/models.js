@@ -300,6 +300,17 @@ export async function requestDrafts(data) {
   return { ...drafts, websiteNote: prompt.websiteNote, attachmentNote: prompt.attachmentNote };
 }
 
+/** Drafts one follow-up step (see server/steps.ts) with whichever model is chosen. Returns what /api/steps returns. */
+export async function requestStepDraft(data) {
+  const key = apiKey();
+  if (needsSetup()) throw new Error("Pick a model first: open Model settings and add your Anthropic API key, or choose LM Studio or Ollama.");
+  if (settings.provider === "claude" && !key) return post("/api/steps", data);
+
+  const prompt = await post("/api/steps/prompt", data);
+  const content = settings.provider === "claude" ? await draftWithClaude(prompt, key) : await draftWithLocal(prompt, settings.provider);
+  return post("/api/steps/parse", { content });
+}
+
 /** Text for the loading screen. */
 export function draftingWith() {
   if (settings.provider === "claude") {

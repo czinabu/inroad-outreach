@@ -28,7 +28,7 @@ export type ProspectInput = z.infer<typeof ProspectInput>;
 /** What a generator drafts from: the form input plus text read from the company's website, if any. */
 export type DraftRequest = ProspectInput & { websiteText?: string; attachmentText?: string };
 
-const Why = z
+export const Why = z
   .string()
   .describe("One or two plain-language sentences a new SDR can learn from: why this draft is written the way it is.");
 
@@ -104,25 +104,36 @@ export type DraftGenerator = (input: DraftRequest) => Promise<OutreachDrafts>;
 
 export const CLAUDE_MODEL = "claude-opus-5-5";
 
-const { type: formatType, schema: draftsSchema } = betaZodOutputFormat(OutreachDrafts);
+/** One call to a model: a system prompt, a user prompt and the JSON shape the reply must have. */
+export type ModelJob<S extends z.ZodType> = { system: string; user: string; schema: S };
+
+export function draftsJob(input: DraftRequest): ModelJob<typeof OutreachDrafts> {
+  return { system: SYSTEM_PROMPT, user: buildUserPrompt(input), schema: OutreachDrafts };
+}
 
 /**
- * The Messages API request body for these drafts, without the model. The Model settings page sends it
+ * The Messages API request body for a job, without the model. The Model settings page sends it
  * straight from the browser to Anthropic with the user's own key, so the key never reaches this server.
  */
-export function claudeRequest(input: DraftRequest) {
+export function claudeJobRequest(job: ModelJob<z.ZodType>) {
+  const { type, schema } = betaZodOutputFormat(job.schema);
   return {
     max_tokens: 16000,
-    system: SYSTEM_PROMPT,
-    messages: [{ role: "user", content: buildUserPrompt(input) }],
-    output_config: { effort: "low", format: { type: formatType, schema: draftsSchema } },
+    system: job.system,
+    messages: [{ role: "user", content: job.user }],
+    output_config: { effort: "low", format: { type, schema } },
   };
 }
 
-export function claudeGenerator(client: Anthropic): DraftGenerator {
-  return async (input) => {
+export function claudeRequest(input: DraftRequest) {
+  return claudeJobRequest(draftsJob(input));
+}
+
+/** Runs jobs with Claude through the server's own API key (from .env). */
+export function claudeRunner(client: Anthropic) {
+  return async <S extends z.ZodType>(job: ModelJob<S>): Promise<z.infer<S>> => {
     try {
-      return await generateWithClaude(client, input);
+      return await runWithClaude(client, job);
     } catch (error) {
       if (error instanceof Anthropic.AuthenticationError) {
         throw new DraftError("The Anthropic API key is missing or invalid. Check ANTHROPIC_API_KEY in your .env file.", 500);
@@ -135,15 +146,20 @@ export function claudeGenerator(client: Anthropic): DraftGenerator {
   };
 }
 
-async function generateWithClaude(client: Anthropic, input: DraftRequest): Promise<OutreachDrafts> {
+export function claudeGenerator(client: Anthropic): DraftGenerator {
+  const run = claudeRunner(client);
+  return (input) => run(draftsJob(input));
+}
+
+async function runWithClaude<S extends z.ZodType>(client: Anthropic, job: ModelJob<S>): Promise<z.infer<S>> {
   const response = await client.beta.messages.parse({
     model: CLAUDE_MODEL,
     max_tokens: 16000,
     betas: ["server-side-fallback-2026-07-01"],
     fallbacks: "default",
-    output_config: { effort: "low", format: betaZodOutputFormat(OutreachDrafts) },
-    system: SYSTEM_PROMPT,
-    messages: [{ role: "user", content: buildUserPrompt(input) }],
+    output_config: { effort: "low", format: betaZodOutputFormat(job.schema) },
+    system: job.system,
+    messages: [{ role: "user", content: job.user }],
   });
 
   if (response.stop_reason === "refusal") {
@@ -152,5 +168,5 @@ async function generateWithClaude(client: Anthropic, input: DraftRequest): Promi
   if (!response.parsed_output) {
     throw new Error(`Claude returned no usable drafts (stop reason: ${response.stop_reason})`);
   }
-  return response.parsed_output;
+  return response.parsed_output as z.infer<S>;
 }
