@@ -3,12 +3,12 @@
 // The outcome is logged on the chosen prospect's history in the contact store.
 import { allObjectionCalls, contactChoices, logObjectionCall, onContactsChange, undoObjectionCall } from "./contacts.js";
 import { el } from "./dom.js";
-import { cueFor, demoLibrary, exportLibrary, objectionStats, parseLibrary, quickPicks, rebuttalsFor, searchObjections } from "./objection-library.js";
+import { demoLibrary, exportLibrary, objectionStats, parseLibrary, quickPicks, rebuttalsFor, searchObjections } from "./objection-library.js";
 import { today } from "./contact-store.js";
 
 const LIBRARY_KEY = "sdr-outreach:objections";
 const MODE_KEY = "sdr-outreach:objection-mode";
-const MAX_MATCHES = 5;
+const MAX_MATCHES = 9;
 const UNDO_MS = 8000;
 
 function readStorage(key) {
@@ -46,6 +46,7 @@ const searchEl = document.getElementById("objection-search");
 const modeEl = document.getElementById("objection-mode");
 const contactEl = document.getElementById("objection-contact");
 const resultsEl = document.getElementById("objection-results");
+const listEl = document.getElementById("objection-list");
 const statusEl = document.getElementById("objection-status");
 const errorEl = document.getElementById("objection-error");
 const setNameEl = document.getElementById("objection-set-name");
@@ -174,23 +175,17 @@ function showToast(text, undo) {
   toastTimer = setTimeout(() => (toastEl.hidden = true), UNDO_MS);
 }
 
-function card(o, { open, number }) {
+function detail(o) {
   const mode = o.forceMode ?? state.mode;
   const rebuttals = rebuttalsFor(o, mode);
-  const box = el("details", "objection-card");
-  box.open = open;
-  const summary = el("summary");
-  const title = el("span", "objection-title", o.title);
-  if (number) title.prepend(el("kbd", "", String(number)));
-  summary.append(title, el("span", "objection-cue", cueFor(o, rebuttals[0])));
-  box.append(summary);
+  const box = el("article", "objection-card");
+  const head = el("header", "objection-card-head");
+  head.append(el("p", "objection-group-label", o.group), el("h2", "objection-title", o.title));
+  box.append(head);
 
   const body = el("div", "objection-body");
-  if (o.note) body.append(el("p", "muted", o.note));
-  const probe = probeBlock(o);
-  if (probe) body.append(probe);
-
-  body.append(el("p", "label", rebuttals.length > 1 ? "Say this (tap the line you used)" : "Say this"));
+  if (o.note) body.append(el("p", "muted objection-note", o.note));
+  body.append(el("p", "label", rebuttals.length > 1 ? "Say this · tap the line you used" : "Say this"));
   rebuttals.forEach((r, i) => {
     const row = el("label", "objection-line");
     const radio = el("input");
@@ -205,85 +200,116 @@ function card(o, { open, number }) {
     body.append(row);
   });
 
+  const probe = probeBlock(o);
+  if (probe) body.append(probe);
   const close = closeBlock(o);
   if (close) body.append(close);
-  body.append(outcomeBar(o, rebuttals));
-  box.append(body);
+  box.append(body, outcomeBar(o, rebuttals));
   return box;
 }
 
-function renderResults() {
-  const lib = state.lib;
-  resultsEl.replaceChildren();
-  if (state.query.trim()) {
-    const matches = searchObjections(lib, state.query);
-    if (!matches.length) {
-      resultsEl.append(el("p", "muted", `Nothing matches "${state.query.trim()}". Try one word from what they said, like price, busy or think.`));
-      return;
+/** What the right-hand panel shows before anything is picked: how to start, and the objections heard most. */
+function emptyDetail(message) {
+  const box = el("div", "objection-empty");
+  box.append(el("h2", "", message ?? "Pick an objection"));
+  box.append(el("p", "muted", "Type a word from what they said, press 1–9 for a quick pick, or click one on the left. The rebuttal and the close show up here."));
+  const top = objectionStats(allObjectionCalls()).slice(0, 3);
+  if (top.length) {
+    box.append(el("p", "label", "Heard most often"));
+    const list = el("div", "objection-top");
+    for (const t of top) {
+      const o = state.lib.objections.find((x) => x.id === t.id);
+      const item = el(o ? "button" : "div", "objection-top-item");
+      if (o) {
+        item.type = "button";
+        item.addEventListener("click", () => openObjection(o.id));
+      }
+      item.append(el("strong", "", t.title), el("span", "muted", `${t.calls} call${t.calls === 1 ? "" : "s"} · ${Math.round((t.wins / t.calls) * 100)}% won`));
+      list.append(item);
     }
-    state.cursor = Math.min(state.cursor, Math.min(matches.length, MAX_MATCHES) - 1);
-    matches.slice(0, MAX_MATCHES).forEach((o, i) => {
-      const c = card(o, { open: i === state.cursor, number: matches.length > 1 ? i + 1 : 0 });
-      // Opening one match closes the others, so the card in view is the one that gets logged.
-      c.addEventListener("toggle", () => {
-        if (c.open && state.cursor !== i) {
-          state.cursor = i;
-          renderResults();
-        }
-      });
-      resultsEl.append(c);
-    });
-    return;
+    box.append(list);
   }
-  if (state.openId) {
-    const o = lib.objections.find((x) => x.id === state.openId);
-    if (o) {
-      const back = el("button", "link-button", "← All objections");
-      back.type = "button";
-      back.addEventListener("click", () => {
-        state.openId = null;
-        renderResults();
-      });
-      resultsEl.append(back, card(o, { open: true }));
-      return;
+  return box;
+}
+
+/** The objections in the order the list shows them, with the quick-pick number each one answers to. */
+function listed() {
+  if (state.query.trim()) return searchObjections(state.lib, state.query).slice(0, MAX_MATCHES).map((o, i) => ({ o, key: i + 1, alt: true }));
+  const picks = quickPicks(state.lib);
+  const items = [];
+  for (const group of state.lib.groups) {
+    for (const o of state.lib.objections.filter((x) => x.group === group)) {
+      const n = picks.indexOf(o);
+      items.push({ o, key: n >= 0 ? n + 1 : 0, alt: false, group });
     }
   }
-  const picks = quickPicks(lib);
-  if (picks.length) {
+  return items;
+}
+
+function selected(items) {
+  if (state.query.trim()) return items[state.cursor]?.o ?? null;
+  return state.lib.objections.find((x) => x.id === state.openId) ?? null;
+}
+
+function listItem({ o, key, alt }, current, index) {
+  const item = el("button", "objection-item");
+  item.type = "button";
+  if (current) item.setAttribute("aria-current", "true");
+  item.append(el("span", "objection-item-title", o.title));
+  if (key) {
+    const k = el("kbd", "", alt ? `Alt ${key}` : String(key));
+    k.title = alt ? `Alt+${key}` : `Press ${key}`;
+    item.append(k);
+  }
+  item.addEventListener("click", () => {
+    if (state.query.trim()) {
+      state.cursor = index;
+      render();
+      revealDetail();
+    } else openObjection(o.id);
+  });
+  return item;
+}
+
+function render() {
+  const items = listed();
+  const searching = Boolean(state.query.trim());
+  if (searching) state.cursor = Math.max(0, Math.min(state.cursor, items.length - 1));
+  const current = selected(items);
+
+  listEl.replaceChildren();
+  if (searching) {
     const section = el("section", "objection-group");
-    section.append(el("h3", "", "Quick picks (press 1–9)"));
-    const row = el("div", "objection-chips");
-    picks.forEach((o, i) => {
-      const chip = el("button", "objection-chip", o.title);
-      chip.prepend(el("kbd", "", String(i + 1)));
-      chip.type = "button";
-      chip.addEventListener("click", () => openObjection(o.id));
-      row.append(chip);
+    section.append(el("h3", "", items.length ? `Matches for "${state.query.trim()}"` : "No matches"));
+    if (!items.length) section.append(el("p", "muted objection-nomatch", "Try one word from what they said, like price, busy or think."));
+    items.forEach((it, i) => section.append(listItem(it, it.o === current, i)));
+    listEl.append(section);
+  } else {
+    let section = null;
+    items.forEach((it, i) => {
+      if (!section || section.dataset.group !== it.group) {
+        section = el("section", "objection-group");
+        section.dataset.group = it.group;
+        section.append(el("h3", "", it.group));
+        listEl.append(section);
+      }
+      section.append(listItem(it, it.o === current, i));
     });
-    section.append(row);
-    resultsEl.append(section);
   }
-  for (const group of lib.groups) {
-    const items = lib.objections.filter((o) => o.group === group);
-    if (!items.length) continue;
-    const section = el("section", "objection-group");
-    section.append(el("h3", "", group));
-    const row = el("div", "objection-chips");
-    for (const o of items) {
-      const chip = el("button", "objection-chip", o.title);
-      chip.type = "button";
-      chip.addEventListener("click", () => openObjection(o.id));
-      row.append(chip);
-    }
-    section.append(row);
-    resultsEl.append(section);
-  }
+
+  if (current) resultsEl.replaceChildren(detail(current));
+  else resultsEl.replaceChildren(emptyDetail(searching && !items.length ? `Nothing matches "${state.query.trim()}"` : undefined));
+}
+
+// On a narrow screen the panel sits under the list, so bring it into view when something is picked.
+function revealDetail() {
+  if (window.matchMedia("(max-width: 900px)").matches) resultsEl.scrollIntoView({ block: "start", behavior: "smooth" });
 }
 
 function openObjection(id) {
   state.openId = id;
-  renderResults();
-  viewEl.scrollIntoView({ block: "start" });
+  render();
+  revealDetail();
 }
 
 function renderStats() {
@@ -341,7 +367,7 @@ searchEl.addEventListener("input", () => {
   state.query = searchEl.value;
   state.openId = null;
   state.cursor = 0;
-  renderResults();
+  render();
 });
 
 // Keyboard, for reps on a live call: type anywhere to search, 1–9 quick picks, ↑ ↓ or Alt+1–9 through matches,
@@ -361,7 +387,7 @@ document.addEventListener("keydown", (event) => {
       state.query = searchEl.value = "";
       state.openId = null;
       state.cursor = 0;
-      renderResults();
+      render();
       searchEl.focus({ preventScroll: true });
     } else newCall();
     return;
@@ -371,14 +397,37 @@ document.addEventListener("keydown", (event) => {
     if (n < matchCount) {
       event.preventDefault();
       state.cursor = n;
-      renderResults();
+      render();
     }
     return;
   }
-  if ((event.key === "ArrowDown" || event.key === "ArrowUp") && matchCount > 1 && (inSearch || !target.closest("details"))) {
-    event.preventDefault();
-    state.cursor = (state.cursor + (event.key === "ArrowDown" ? 1 : matchCount - 1)) % matchCount;
-    renderResults();
+  if ((event.key === "ArrowDown" || event.key === "ArrowUp") && !target.closest("#objection-stats")) {
+    const step = event.key === "ArrowDown" ? 1 : -1;
+    if (state.query.trim()) {
+      if (matchCount < 2) return;
+      event.preventDefault();
+      state.cursor = (state.cursor + step + matchCount) % matchCount;
+    } else {
+      // With nothing typed, the arrows walk the whole list and preview each objection in the panel.
+      const items = listed();
+      if (!items.length) return;
+      event.preventDefault();
+      const at = items.findIndex((it) => it.o.id === state.openId);
+      const next = at < 0 ? (step > 0 ? 0 : items.length - 1) : (at + step + items.length) % items.length;
+      state.openId = items[next].o.id;
+    }
+    render();
+    listEl.querySelector('[aria-current="true"]')?.scrollIntoView({ block: "nearest" });
+    return;
+  }
+  // 1–9 open a quick pick even from the empty search box, so the page is ready the moment it opens.
+  if (/^[1-9]$/.test(event.key) && !event.altKey && !state.query) {
+    const pick = quickPicks(state.lib)[Number(event.key) - 1];
+    if (pick) {
+      event.preventDefault();
+      if (inSearch) searchEl.blur();
+      openObjection(pick.id);
+    }
     return;
   }
   if (inSearch) {
@@ -394,14 +443,6 @@ document.addEventListener("keydown", (event) => {
     searchEl.focus();
     return;
   }
-  if (/^[1-9]$/.test(event.key) && !state.query) {
-    const pick = quickPicks(state.lib)[Number(event.key) - 1];
-    if (pick) {
-      event.preventDefault();
-      openObjection(pick.id);
-    }
-    return;
-  }
   // Any letter starts a search, wherever the focus is on this page.
   if (event.key.length === 1 && /[a-z]/i.test(event.key)) searchEl.focus({ preventScroll: true });
 });
@@ -409,7 +450,7 @@ document.addEventListener("keydown", (event) => {
 modeEl.addEventListener("change", () => {
   state.mode = modeEl.value;
   writeStorage(MODE_KEY, state.mode);
-  renderResults();
+  render();
 });
 contactEl.addEventListener("change", () => {
   state.contactId = contactEl.value;
@@ -421,7 +462,7 @@ function newCall() {
   state.said.clear();
   searchEl.value = "";
   say("");
-  renderResults();
+  render();
   searchEl.focus({ preventScroll: true });
 }
 document.getElementById("objection-new-call").addEventListener("click", newCall);
@@ -443,7 +484,7 @@ document.getElementById("objection-import").addEventListener("change", async (ev
     state.openId = null;
     state.said.clear();
     renderControls();
-    renderResults();
+    render();
     say(`Loaded ${lib.objections.length} objections from ${file.name}.`);
   } catch (error) {
     say(`${file.name}: ${error.message}`, true);
@@ -460,13 +501,14 @@ document.getElementById("objection-reset").addEventListener("click", () => {
   state.openId = null;
   state.said.clear();
   renderControls();
-  renderResults();
+  render();
   say("Back to the demo set.");
 });
 
 onContactsChange(() => {
   renderContactChoices();
   renderStats();
+  if (!resultsEl.querySelector(".objection-card")) render();
 });
 
 /** Called when the Objections view is shown. */
@@ -476,4 +518,4 @@ export function showObjections() {
 }
 
 renderControls();
-renderResults();
+render();
