@@ -38,7 +38,7 @@ function loadLibrary() {
   return demoLibrary();
 }
 
-const state = { lib: loadLibrary(), mode: "inside", query: "", openId: null, cursor: 0, contactId: "", said: new Map() };
+const state = { lib: loadLibrary(), mode: "field", query: "", openId: null, cursor: 0, contactId: "", said: new Map() };
 const saved = readStorage(MODE_KEY);
 if (saved === "inside" || saved === "field") state.mode = saved;
 
@@ -337,7 +337,7 @@ function renderStats() {
 
 function renderControls() {
   modeEl.replaceChildren(
-    ...["inside", "field"].map((mode) => {
+    ...["field", "inside"].map((mode) => {
       const option = el("option", "", state.lib.modes[mode].name + (state.lib.modes[mode].hint ? ` (${state.lib.modes[mode].hint})` : ""));
       option.value = mode;
       return option;
@@ -502,7 +502,7 @@ document.getElementById("objection-reset").addEventListener("click", () => {
   state.said.clear();
   renderControls();
   render();
-  say("Back to the demo set.");
+  say("Back to the SDR starter set.");
 });
 
 onContactsChange(() => {

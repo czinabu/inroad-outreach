@@ -42,7 +42,7 @@ test("cleaning drops bad entries, fills defaults and makes ids unique", () => {
   assert.deepEqual(lib.objections.map((o: { id: string }) => o.id), ["price", "price-2"]);
   assert.equal(lib.objections[0].group, "Other");
   assert.deepEqual(lib.groups, ["Other"]);
-  assert.equal(lib.modes.inside.name, "Transfer");
+  assert.equal(lib.modes.inside.name, "Live transfer");
 });
 
 test("a file that isn't an objection set is refused with a clear message", () => {
@@ -131,4 +131,11 @@ test("quick picks use the set's pins, and imported pins that don't exist are dro
   assert.deepEqual(quickPicks(lib).map((o: { id: string }) => o.id), ["b"]);
   const unpinned = cleanLibrary({ objections: [{ title: "a", rebuttals: [{ text: "x" }] }] });
   assert.deepEqual(quickPicks(unpinned).map((o: { id: string }) => o.id), ["a"]);
+});
+
+test("every quick pick in the starter set exists and every objection has a group the page shows", () => {
+  const lib = demoLibrary();
+  assert.equal(lib.pins.length, 9);
+  for (const id of lib.pins) assert.ok(lib.objections.some((o: { id: string }) => o.id === id), id);
+  for (const o of lib.objections) assert.ok(lib.groups.includes(o.group), o.id);
 });
