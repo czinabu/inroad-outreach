@@ -56,10 +56,10 @@ function showListError(message) {
 }
 
 document.getElementById("export-csv").addEventListener("click", () => {
-  download(`sdr-contacts-${today()}.csv`, "text/csv", contactsCsv(store.list(), industryLabels));
+  download(`inroad-contacts-${today()}.csv`, "text/csv", contactsCsv(store.list(), industryLabels));
 });
 document.getElementById("backup-contacts").addEventListener("click", () => {
-  download(`sdr-contacts-backup-${today()}.json`, "application/json", store.backup());
+  download(`inroad-contacts-backup-${today()}.json`, "application/json", store.backup());
 });
 document.getElementById("restore-contacts").addEventListener("change", async (event) => {
   const file = event.target.files[0];
@@ -71,7 +71,7 @@ document.getElementById("restore-contacts").addEventListener("change", async (ev
     refresh();
     document.getElementById("due-summary").textContent = `Restored ${added} contact${added === 1 ? "" : "s"} from ${file.name}.`;
   } catch (error) {
-    showListError(error instanceof SyntaxError ? `${file.name} isn't an SDR Outreach backup.` : error.message);
+    showListError(error instanceof SyntaxError ? `${file.name} isn't an Inroad backup.` : error.message);
   }
 });
 

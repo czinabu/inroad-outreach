@@ -161,7 +161,7 @@ async function loadIndustries() {
     industryTip.textContent =
       location.hostname === "localhost" || location.hostname === "127.0.0.1"
         ? "Couldn't load the industry list. If you just updated the app, stop it with Ctrl+C, run npm install and npm start, then refresh this page."
-        : "Couldn't reach SDR Outreach's server, so the industry list and drafting aren't available right now. Refresh the page in a minute.";
+        : "Couldn't reach Inroad's server, so the industry list and drafting aren't available right now. Refresh the page in a minute.";
     return false;
   }
 }
