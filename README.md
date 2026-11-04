@@ -1,6 +1,6 @@
-# sdr-outreach
+# Inroad
 
-A tool to help SDRs write first-touch outreach for LinkedIn, email and phone, whether you're new to prospecting or have done it for years.
+Inroad helps SDRs write first-touch outreach for LinkedIn, email and phone, whether you're new to prospecting or have done it for years.
 
 Enter one prospect and what you sell, and AI (Claude, or a free model on your own computer through LM Studio or Ollama) drafts a LinkedIn connection note and follow-up, a cold email, and a phone opener with discovery questions and a voicemail.
 

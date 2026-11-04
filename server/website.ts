@@ -130,7 +130,7 @@ export async function readWebsite(raw: string, fetchImpl: typeof fetch = publicF
   try {
     response = await fetchImpl(url, {
       signal: AbortSignal.timeout(TIMEOUT_MS),
-      headers: { "User-Agent": "Mozilla/5.0 (compatible; SDR-Outreach/1.0)", Accept: "text/html,*/*;q=0.8" },
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; Inroad/1.0)", Accept: "text/html,*/*;q=0.8" },
     });
   } catch (error) {
     if (error instanceof WebsiteError) throw error;

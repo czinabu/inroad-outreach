@@ -118,7 +118,7 @@ export function createApp(generateDrafts: DraftGenerator, fetchWebsite: typeof r
   // reaching the app by pointing its own domain name at 127.0.0.1 (DNS rebinding).
   app.use((req, res, next) => {
     if (!hosted && !LOCAL_HOSTS.has(req.hostname)) {
-      res.status(403).send("SDR Outreach only answers on localhost.");
+      res.status(403).send("Inroad only answers on localhost.");
       return;
     }
     res.set(SECURITY_HEADERS);

@@ -42,7 +42,7 @@ if (provider === "local") {
 
 // Listen on this computer only, so nobody else on your network can open the app or your contacts.
 const server = createApp(generateDrafts, undefined, { serverModel, generateStep }).listen(port, "127.0.0.1", () => {
-  console.log(`SDR Outreach is running at http://localhost:${port} (drafting with ${providerLabel})`);
+  console.log(`Inroad is running at http://localhost:${port} (drafting with ${providerLabel})`);
   console.log("Saved contacts live in your browser. Use Back up on the Contacts page to keep a copy.");
   if (fs.existsSync(LEGACY_CONTACTS_FILE)) {
     console.log(`Contacts from ${LEGACY_CONTACTS_FILE} are copied into your browser the first time you open the app.`);
