@@ -384,6 +384,7 @@ function showView(name, options = {}) {
     if (button.dataset.view === name) button.setAttribute("aria-current", "page");
     else button.removeAttribute("aria-current");
   }
+  document.querySelector(`[data-view="${name}"]`)?.scrollIntoView({ block: "nearest", inline: "nearest" });
   if (name === "contacts") renderContactsView();
   if (name === "objections") showObjections(options.contactId);
   if (name === "today") renderToday();
@@ -392,6 +393,17 @@ function showView(name, options = {}) {
 }
 
 for (const button of document.querySelectorAll("[data-view]")) button.addEventListener("click", () => showView(button.dataset.view));
+
+// On a phone the tab row can scroll sideways: fade whichever edge has more tabs past it.
+const viewTabs = document.querySelector(".views");
+function updateTabFade() {
+  const { scrollLeft, scrollWidth, clientWidth } = viewTabs;
+  viewTabs.classList.toggle("can-scroll-left", scrollLeft > 1);
+  viewTabs.classList.toggle("can-scroll-right", scrollLeft + clientWidth < scrollWidth - 1);
+}
+viewTabs.addEventListener("scroll", updateTabFade, { passive: true });
+addEventListener("resize", updateTabFade);
+updateTabFade();
 
 function render(drafts) {
   showNotice("website-note", drafts.websiteNote);

@@ -209,8 +209,10 @@ h4 { font-size: 0.9rem; font-weight: 600; margin: 0 0 10px; }
 
 /* Small screens: the sidebar becomes a top bar with a tab row. */
 @media (max-width: 899px) {
-  .app { grid-template-columns: 1fr; }
+  /* Rows hug their content: without this a short page stretches the top bar to fill the screen. */
+  .app { grid-template-columns: 1fr; grid-template-rows: auto 1fr; align-content: start; }
   .sidebar {
+    align-content: start;
     position: sticky;
     z-index: 5;
     height: auto;
@@ -226,9 +228,26 @@ h4 { font-size: 0.9rem; font-weight: 600; margin: 0 0 10px; }
   .app { background: none; }
   .sidebar-foot { grid-row: 1; grid-column: 2; margin: 0; padding: 0; border: 0; align-self: center; }
   .toggle-text small { display: none; }
-  .views { grid-column: 1 / -1; display: flex; gap: 4px; margin: 0 -4px; overflow-x: auto; }
+  /* The tab row scrolls sideways when it doesn't fit, with a fade at the edge as the cue. */
+  .views {
+    grid-column: 1 / -1;
+    display: flex;
+    gap: 4px;
+    margin: 0 -16px;
+    padding: 0 12px;
+    overflow-x: auto;
+    scroll-padding-inline: 40px;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .views::-webkit-scrollbar { display: none; }
+  .views.can-scroll-right { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent); }
+  .views.can-scroll-left { -webkit-mask-image: linear-gradient(to right, transparent, #000 40px); mask-image: linear-gradient(to right, transparent, #000 40px); }
+  .views.can-scroll-left.can-scroll-right { -webkit-mask-image: linear-gradient(to right, transparent, #000 40px, #000 calc(100% - 40px), transparent); mask-image: linear-gradient(to right, transparent, #000 40px, #000 calc(100% - 40px), transparent); }
   .views button {
-    flex: 1;
+    flex: 1 0 auto;
+    width: auto;
+    gap: 6px;
     justify-content: center;
     padding: 8px 6px 10px;
     border-radius: 0;
@@ -244,6 +263,8 @@ h4 { font-size: 0.9rem; font-weight: 600; margin: 0 0 10px; }
 }
 @media (max-width: 480px) {
   .page-sub { display: none; }
+  .nav-label-more { display: none; }
+  .views button { padding: 8px 8px 10px; }
 }
 
 /* --- Shared building blocks ------------------------------------------------ */
