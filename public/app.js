@@ -414,6 +414,9 @@ function render(drafts) {
   const length = drafts.linkedin.connectionNote.length;
   setText("linkedin-count", `${length} / 300 characters${length > 300 ? " · trim before sending" : ""}`);
   document.getElementById("linkedin-count").classList.toggle("over", length > 300);
+  // The thin meter along the bottom of the note fills toward LinkedIn's 300-character limit.
+  document.getElementById("linkedin-note").style.setProperty("--fill", String(Math.min(length / 300, 1)));
+  document.getElementById("linkedin-note").classList.toggle("over", length > 300);
   setText("linkedin-followup", drafts.linkedin.followUpMessage);
   setText("linkedin-why", drafts.linkedin.why);
 

@@ -2,12 +2,26 @@
  * Inroad's design tokens. Warm neutrals, one ink color for actions, and one accent (a deep teal) used only for
  * "you are here" and "this is ready": the current page, the selected row, focus, and a draft that's ready to send.
  * Channel colors are muted so they label without shouting. Every color is a token, so light and dark stay in step.
+ * Headings are set in Plex Serif for an editorial voice; everything you read and type is Plex Sans.
+ * Theme: the computer's setting by default, or Light / Dark from the switch in the sidebar (data-theme on <html>).
  */
 @font-face {
   font-family: "Plex Sans";
   src: url("fonts/ibm-plex-sans-latin-wght-normal.woff2") format("woff2-variations");
   font-weight: 100 700;
   font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Plex Serif";
+  src: url("fonts/ibm-plex-serif-latin-500-normal.woff2") format("woff2");
+  font-weight: 500;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Plex Serif";
+  src: url("fonts/ibm-plex-serif-latin-600-normal.woff2") format("woff2");
+  font-weight: 600 700;
   font-display: swap;
 }
 @font-face {
@@ -28,6 +42,7 @@
   --surface: #ffffff;
   --surface-2: #f3f2ee;
   --sidebar: #efeee9;
+  --rail: #15201d;
   --selected: #e7e5de;
   --text: #1b1a17;
   --text-2: #46443e;
@@ -53,6 +68,7 @@
   --phone: #4f7a46;
 
   --font: "Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --serif: "Plex Serif", ui-serif, Georgia, "Times New Roman", serif;
   --mono: "Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
   /* Type scale: 12 / 13 / 14 (body) / 16 / 20 / 24 */
@@ -81,28 +97,30 @@
   color-scheme: light dark;
 }
 
+/* Dark: when the computer is set to dark and no theme is picked, or when Dark is picked. Keep the two lists the same. */
 @media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #141412;
-    --surface: #1a1a18;
-    --surface-2: #21211e;
-    --sidebar: #111110;
-    --selected: #262623;
-    --text: #ecebe6;
-    --text-2: #c9c7c0;
-    --muted: #96938a;
-    --border: #2b2a27;
-    --border-strong: #3c3b37;
-    --ink: #ecebe6;
+  :root:not([data-theme="light"]) {
+    --bg: #111413;
+    --surface: #171b1a;
+    --surface-2: #1d2220;
+    --sidebar: #0b0e0d;
+    --rail: #0b0e0d;
+    --selected: #232a28;
+    --text: #e8ebe8;
+    --text-2: #c4cbc7;
+    --muted: #8f9994;
+    --border: #262d2b;
+    --border-strong: #37413e;
+    --ink: #e8ebe8;
     --ink-hover: #ffffff;
-    --ink-text: #141412;
-    --accent: #5fb8a6;
-    --accent-hover: #80cbbb;
-    --accent-soft: #19302b;
-    --accent-text: #0e1a17;
-    --ring: #5fb8a6;
-    --good: #5fb8a6;
-    --good-soft: #19302b;
+    --ink-text: #111413;
+    --accent: #62c0ad;
+    --accent-hover: #84d0c0;
+    --accent-soft: #17302b;
+    --accent-text: #0b1a17;
+    --ring: #62c0ad;
+    --good: #62c0ad;
+    --good-soft: #17302b;
     --warn: #e0a845;
     --warn-soft: #2c2314;
     --error: #ef7d70;
@@ -110,8 +128,41 @@
     --linkedin: #7fa9d8;
     --email: #d4a64c;
     --phone: #93c086;
+    color-scheme: dark;
   }
 }
+:root[data-theme="dark"] {
+  --bg: #111413;
+  --surface: #171b1a;
+  --surface-2: #1d2220;
+  --sidebar: #0b0e0d;
+  --rail: #0b0e0d;
+  --selected: #232a28;
+  --text: #e8ebe8;
+  --text-2: #c4cbc7;
+  --muted: #8f9994;
+  --border: #262d2b;
+  --border-strong: #37413e;
+  --ink: #e8ebe8;
+  --ink-hover: #ffffff;
+  --ink-text: #111413;
+  --accent: #62c0ad;
+  --accent-hover: #84d0c0;
+  --accent-soft: #17302b;
+  --accent-text: #0b1a17;
+  --ring: #62c0ad;
+  --good: #62c0ad;
+  --good-soft: #17302b;
+  --warn: #e0a845;
+  --warn-soft: #2c2314;
+  --error: #ef7d70;
+  --error-soft: #2f1b18;
+  --linkedin: #7fa9d8;
+  --email: #d4a64c;
+  --phone: #93c086;
+  color-scheme: dark;
+}
+:root[data-theme="light"] { color-scheme: light; }
 
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
@@ -127,7 +178,7 @@ body {
 }
 
 h1, h2, h3, h4 { line-height: 1.3; color: var(--text); }
-h1 { font-size: var(--fs-2xl); font-weight: 600; letter-spacing: -0.02em; margin: 0; }
+h1 { font: 600 1.75rem/1.15 var(--serif); letter-spacing: -0.015em; margin: 0; }
 h2 { font-size: var(--fs-lg); font-weight: 600; letter-spacing: -0.005em; margin: 0 0 var(--s-2); }
 /* One label style across the app: small, semibold, sentence case. */
 h3 { font-size: var(--fs-sm); font-weight: 600; margin: 0; color: var(--text); }
@@ -146,7 +197,7 @@ h4 { font-size: var(--fs-md); font-weight: 600; margin: 0 0 var(--s-2); }
   grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
   min-height: 100vh;
   /* Paints the sidebar column all the way down, however long the page is. */
-  background: linear-gradient(to right, var(--sidebar) calc(var(--sidebar-width) - 1px), var(--border) 0, var(--border) var(--sidebar-width), transparent 0);
+  background: linear-gradient(to right, var(--rail) var(--sidebar-width), transparent 0);
 }
 
 .sidebar {
@@ -158,19 +209,30 @@ h4 { font-size: var(--fs-md); font-weight: 600; margin: 0 0 var(--s-2); }
   height: 100vh;
   padding: var(--s-5) var(--s-3) var(--s-4);
   background: var(--sidebar);
+  color: var(--text);
   border-right: 1px solid var(--border);
 }
+/* The sidebar is a deep green-black in both themes: it anchors the page and gives the app its color. */
+.sidebar {
+  --sidebar: var(--rail);
+  --text: #edf0ed;
+  --text-2: #c2ccc7;
+  --muted: #8b9a94;
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.18);
+  --selected: rgba(255, 255, 255, 0.07);
+  --surface: #ffffff;
+  --ink: #edf0ed;
+  --ink-text: #15201d;
+  --accent: #6cc6b3;
+  --good: #6cc6b3;
+  --ring: #6cc6b3;
+  color-scheme: dark;
+}
+
 
 .brand { display: flex; align-items: baseline; gap: var(--s-2); padding: 0 var(--s-2); }
-/* The mark: a short ink bar with the accent at its foot, like a road marker. */
-.brand-mark {
-  align-self: center;
-  width: 4px;
-  height: 18px;
-  border-radius: 1px;
-  background: linear-gradient(to bottom, var(--ink) 66%, var(--accent) 0);
-}
-.brand-name { margin: 0; font-weight: 650; font-size: var(--fs-lg); letter-spacing: -0.02em; line-height: 1.2; }
+.brand-name { margin: 0; font: 600 1.25rem/1.1 var(--serif); letter-spacing: -0.01em; }
 .tagline { margin: 2px 0 0; font-size: var(--fs-xs); line-height: 1.3; color: var(--muted); }
 
 .views { display: grid; gap: 2px; }
@@ -210,7 +272,25 @@ h4 { font-size: var(--fs-md); font-weight: 600; margin: 0 0 var(--s-2); }
 .model-dot.ok { background: var(--good); }
 .model-dot.error { background: var(--error); }
 
-.sidebar-foot { margin-top: auto; padding: var(--s-3) var(--s-2) 0; border-top: 1px solid var(--border); }
+.sidebar-foot { display: grid; gap: var(--s-4); margin-top: auto; padding: var(--s-4) var(--s-2) 0; border-top: 1px solid var(--border); }
+
+/* System / Light / Dark: three icon buttons in one segmented control. */
+.theme-switch { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.theme-label { font-weight: 500; }
+.theme-options { display: flex; padding: 2px; border: 1px solid var(--border); border-radius: var(--radius-sm); }
+.theme-options button {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--muted);
+}
+.theme-options button:hover { color: var(--text); }
+.theme-options button[aria-pressed="true"] { background: var(--selected); color: var(--text); box-shadow: inset 0 0 0 1px var(--border-strong); }
 
 /* Guide me: a switch rather than a bare checkbox */
 .toggle { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 0; cursor: pointer; font-weight: 500; }
@@ -253,6 +333,8 @@ h4 { font-size: var(--fs-md); font-weight: 600; margin: 0 0 var(--s-2); }
   justify-content: space-between;
   gap: var(--s-4);
   margin-bottom: var(--s-5);
+  padding-bottom: var(--s-4);
+  border-bottom: 1px solid var(--border);
 }
 .page-sub { margin: var(--s-1) 0 0; max-width: 90ch; color: var(--muted); }
 
@@ -275,7 +357,9 @@ h4 { font-size: var(--fs-md); font-weight: 600; margin: 0 0 var(--s-2); }
   .brand { padding: 0; }
   .tagline { display: none; }
   .app { background: none; }
-  .sidebar-foot { grid-row: 1; grid-column: 2; margin: 0; padding: 0; border: 0; align-self: center; }
+  .sidebar-foot { grid-row: 1; grid-column: 2; display: flex; align-items: center; gap: var(--s-4); margin: 0; padding: 0; border: 0; align-self: center; }
+  .theme-label { display: none; }
+  .toggle-text { white-space: nowrap; }
   .toggle-text small { display: none; }
   /* The tab row scrolls sideways when it doesn't fit, with a fade at the edge as the cue. */
   .views {
@@ -314,6 +398,8 @@ h4 { font-size: var(--fs-md); font-weight: 600; margin: 0 0 var(--s-2); }
 }
 @media (max-width: 480px) {
   .page-sub { display: none; }
+  .sidebar-foot { gap: var(--s-3); }
+  .theme-options button { width: 24px; }
   .nav-label-more { display: none; }
   .views button { padding: 8px 8px 10px; }
 }
@@ -515,8 +601,31 @@ code { padding: 1px 4px; border-radius: var(--radius-xs); background: var(--surf
   margin-bottom: var(--s-3);
   color: var(--border-strong);
 }
-.empty h2 { font-size: var(--fs-xl); letter-spacing: -0.015em; }
-.how { counter-reset: how; list-style: none; max-width: 60ch; margin: var(--s-5) 0 0; padding: 0; display: grid; gap: 0; color: var(--text-2); }
+.empty h2 { font: 600 1.625rem/1.2 var(--serif); letter-spacing: -0.015em; }
+.empty-lead { max-width: 58ch; margin: 0; }
+.eyebrow { margin: 0 0 var(--s-2); color: var(--accent); font: 500 var(--fs-xs)/1 var(--mono); letter-spacing: 0.04em; }
+
+/* The empty Draft view shows the road ahead: a sample sequence drawn as stops along one line. */
+.route { margin: var(--s-6) 0 var(--s-2); }
+.route ol { position: relative; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); margin: 0; padding: 0; list-style: none; }
+.route ol::before { content: ""; position: absolute; top: 5px; left: 5px; right: 0; height: 1px; background: repeating-linear-gradient(to right, var(--border-strong) 0 6px, transparent 6px 10px); }
+.route li { position: relative; display: grid; gap: 2px; padding: var(--s-5) var(--s-3) 0 0; }
+.route li::before { content: ""; position: absolute; top: 0; left: 0; width: 11px; height: 11px; border-radius: 2px; background: var(--surface); box-shadow: inset 0 0 0 2px var(--route, var(--muted)); }
+.route li:first-child::before { background: var(--route); }
+.route li.linkedin { --route: var(--linkedin); }
+.route li.email { --route: var(--email); }
+.route li.phone { --route: var(--phone); }
+.route li.end { --route: var(--text-2); }
+.route-day { color: var(--muted); font: 500 var(--fs-xs)/1.4 var(--mono); }
+.route-channel { font-weight: 600; }
+.route-what { color: var(--text-2); font-size: var(--fs-sm); }
+.route figcaption { margin-top: var(--s-4); color: var(--muted); font-size: var(--fs-xs); }
+@media (max-width: 640px) {
+  .route ol { grid-template-columns: 1fr; gap: var(--s-3); }
+  .route ol::before { top: 5px; bottom: 5px; left: 5px; right: auto; width: 1px; height: auto; background: repeating-linear-gradient(to bottom, var(--border-strong) 0 6px, transparent 6px 10px); }
+  .route li { grid-template-columns: 56px 80px 1fr; padding: 0 0 0 var(--s-5); align-items: baseline; }
+}
+.how { counter-reset: how; list-style: none; max-width: 60ch; margin: var(--s-6) 0 0; padding: 0; display: grid; gap: 0; color: var(--text-2); }
 .how li { counter-increment: how; position: relative; padding: var(--s-3) 0 var(--s-3) 40px; border-top: 1px solid var(--border); }
 .how li::before {
   content: counter(how, decimal-leading-zero);
@@ -584,6 +693,12 @@ code { padding: 1px 4px; border-radius: var(--radius-xs); background: var(--surf
 }
 .tabs button:hover { color: var(--text); }
 .tabs button[aria-selected="true"] { color: var(--text); font-weight: 550; }
+.tabs button { display: inline-flex; align-items: center; gap: 7px; }
+.tab-swatch { width: 7px; height: 7px; border-radius: 1px; background: var(--tab, var(--muted)); opacity: 0.55; }
+.tabs [data-tab="linkedin"] { --tab: var(--linkedin); }
+.tabs [data-tab="email"] { --tab: var(--email); }
+.tabs [data-tab="phone"] { --tab: var(--phone); }
+.tabs button[aria-selected="true"] .tab-swatch { opacity: 1; }
 .tabs button[aria-selected="true"]::after {
   content: "";
   position: absolute;
@@ -591,7 +706,7 @@ code { padding: 1px 4px; border-radius: var(--radius-xs); background: var(--surf
   bottom: -1px;
   left: 0;
   height: 2px;
-  background: var(--ink);
+  background: var(--tab, var(--ink));
 }
 
 .tab-panel { padding: var(--s-5); border-top: 0; border-radius: 0 0 var(--radius) var(--radius); }
@@ -615,6 +730,11 @@ code { padding: 1px 4px; border-radius: var(--radius-xs); background: var(--surf
   font-size: 0.9375rem;
   line-height: 1.6;
 }
+
+/* LinkedIn's 300-character limit, as a thin meter along the bottom of the note. */
+#linkedin-note { position: relative; overflow: hidden; }
+#linkedin-note::after { content: ""; position: absolute; left: 0; bottom: 0; height: 2px; width: calc(var(--fill, 0) * 100%); background: var(--linkedin); }
+#linkedin-note.over::after { background: var(--error); }
 
 .copy {
   padding: 1px 8px;
@@ -815,7 +935,7 @@ code { padding: 1px 4px; border-radius: var(--radius-xs); background: var(--surf
 .contacts-head, .detail-head, .section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .detail-head { margin-bottom: var(--s-5); }
 .detail-title { display: flex; align-items: center; gap: 14px; min-width: 0; }
-.detail-head h2 { margin: 0; font-size: var(--fs-xl); letter-spacing: -0.015em; }
+.detail-head h2 { margin: 0; font: 600 1.375rem/1.2 var(--serif); letter-spacing: -0.01em; }
 .detail-head p { margin: 2px 0 0; }
 .detail-section { margin-top: var(--s-5); padding-top: var(--s-5); border-top: 1px solid var(--border); }
 .detail-section > h3, .section-head { margin-bottom: 12px; }
@@ -965,7 +1085,7 @@ code { padding: 1px 4px; border-radius: var(--radius-xs); background: var(--surf
 .objection-card { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
 .objection-card-head { padding: var(--s-4) var(--s-5) 0; }
 .objection-group-label { margin: 0 0 2px; font-size: var(--fs-xs); font-weight: 500; color: var(--muted); }
-.objection-title { margin: 0; font-size: var(--fs-xl); font-weight: 600; letter-spacing: -0.015em; }
+.objection-title { margin: 0; font: 600 1.375rem/1.2 var(--serif); letter-spacing: -0.01em; }
 .objection-body { flex: 1; min-height: 0; overflow-y: auto; padding: var(--s-1) var(--s-5) var(--s-4); }
 .objection-body .label, .objection-empty .label, .objection-outcome .label { margin: var(--s-4) 0 6px; font-size: var(--fs-xs); font-weight: 600; color: var(--muted); }
 .objection-note { margin: 8px 0 0; }
@@ -999,7 +1119,7 @@ code { padding: 1px 4px; border-radius: var(--radius-xs); background: var(--surf
 .objection-logged { margin: 6px 0 0; min-height: 1.2em; font-size: var(--fs-sm); }
 
 .objection-empty { padding: var(--s-5); }
-.objection-empty h2 { margin: 0 0 6px; font-size: var(--fs-xl); letter-spacing: -0.015em; }
+.objection-empty h2 { margin: 0 0 6px; font: 600 1.375rem/1.2 var(--serif); letter-spacing: -0.01em; }
 .objection-empty > p.muted { margin: 0; max-width: 46ch; line-height: 1.5; }
 .objection-top { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; }
 .objection-top-item { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font: inherit; text-align: left; }
