@@ -232,14 +232,6 @@ h4 { font-size: var(--fs-md); font-weight: 600; margin: 0 0 var(--s-2); }
 
 
 .brand { display: flex; align-items: baseline; gap: var(--s-2); padding: 0 var(--s-2); }
-/* The mark: a short ink bar with the accent at its foot, like a road marker. */
-.brand-mark {
-  align-self: center;
-  width: 4px;
-  height: 18px;
-  border-radius: 1px;
-  background: linear-gradient(to bottom, var(--ink) 62%, var(--accent) 0);
-}
 .brand-name { margin: 0; font: 600 1.25rem/1.1 var(--serif); letter-spacing: -0.01em; }
 .tagline { margin: 2px 0 0; font-size: var(--fs-xs); line-height: 1.3; color: var(--muted); }
 
