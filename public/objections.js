@@ -5,6 +5,7 @@ import { allObjectionCalls, contactChoices, logObjectionCall, onContactsChange, 
 import { el } from "./dom.js";
 import { demoLibrary, exportLibrary, objectionStats, parseLibrary, quickPicks, rebuttalsFor, searchObjections } from "./objection-library.js";
 import { today } from "./contact-store.js";
+import { keyAction, selectionMode, typed } from "./objection-state.js";
 
 const LIBRARY_KEY = "sdr-outreach:objections";
 const MODE_KEY = "sdr-outreach:objection-mode";
@@ -38,6 +39,8 @@ function loadLibrary() {
   return demoLibrary();
 }
 
+// query, openId and cursor are the selection (see Selection in objection-state.js); said is which rebuttal is
+// checked on each card, by objection id.
 const state = { lib: loadLibrary(), mode: "field", query: "", openId: null, cursor: 0, contactId: "", said: new Map() };
 const saved = readStorage(MODE_KEY);
 if (saved === "inside" || saved === "field") state.mode = saved;
@@ -248,7 +251,7 @@ function emptyDetail(message) {
 
 /** The objections in the order the list shows them, with the quick-pick number each one answers to. */
 function listed() {
-  if (state.query.trim()) return searchObjections(state.lib, state.query).slice(0, MAX_MATCHES).map((o, i) => ({ o, key: i + 1, alt: true }));
+  if (searching()) return searchObjections(state.lib, state.query).slice(0, MAX_MATCHES).map((o, i) => ({ o, key: i + 1, alt: true }));
   const picks = quickPicks(state.lib);
   const items = [];
   for (const group of state.lib.groups) {
@@ -261,7 +264,7 @@ function listed() {
 }
 
 function selected(items) {
-  if (state.query.trim()) return items[state.cursor]?.o ?? null;
+  if (searching()) return items[state.cursor]?.o ?? null;
   return state.lib.objections.find((x) => x.id === state.openId) ?? null;
 }
 
@@ -276,7 +279,7 @@ function listItem({ o, key, alt }, current, index) {
     item.append(k);
   }
   item.addEventListener("click", () => {
-    if (state.query.trim()) {
+    if (searching()) {
       state.cursor = index;
       render();
       revealDetail();
@@ -285,14 +288,19 @@ function listItem({ o, key, alt }, current, index) {
   return item;
 }
 
+function searching() {
+  return selectionMode(state) === "searching";
+}
+
 function render() {
   const items = listed();
-  const searching = Boolean(state.query.trim());
-  if (searching) state.cursor = Math.max(0, Math.min(state.cursor, items.length - 1));
+  const isSearching = searching();
+  viewEl.dataset.selection = selectionMode(state);
+  if (isSearching) state.cursor = Math.max(0, Math.min(state.cursor, items.length - 1));
   const current = selected(items);
 
   listEl.replaceChildren();
-  if (searching) {
+  if (isSearching) {
     const section = el("section", "objection-group");
     section.append(el("h3", "", items.length ? `Matches for "${state.query.trim()}"` : "No matches"));
     if (!items.length) section.append(el("p", "muted objection-nomatch", "Try one word from what they said, like price, busy or think."));
@@ -312,7 +320,7 @@ function render() {
   }
 
   if (current) resultsEl.replaceChildren(detail(current));
-  else resultsEl.replaceChildren(emptyDetail(searching && !items.length ? `Nothing matches "${state.query.trim()}"` : undefined));
+  else resultsEl.replaceChildren(emptyDetail(isSearching && !items.length ? `Nothing matches "${state.query.trim()}"` : undefined));
 }
 
 // On a narrow screen the panel sits under the list, so bring it into view when something is picked.
@@ -378,87 +386,56 @@ function renderContactChoices() {
 // --- Events ------------------------------------------------------------------
 
 searchEl.addEventListener("input", () => {
-  state.query = searchEl.value;
-  state.openId = null;
-  state.cursor = 0;
+  Object.assign(state, typed(searchEl.value));
   render();
 });
 
-// Keyboard, for reps on a live call: type anywhere to search, 1–9 quick picks, ↑ ↓ or Alt+1–9 through matches,
-// Enter to stop typing and read, Esc to clear and Esc again for a new call, / to jump back to the search.
+// Keyboard, for reps on a live call. The rules are keyAction in objection-state.js; this does what it says.
 document.addEventListener("keydown", (event) => {
-  if (viewEl.hidden || event.ctrlKey || event.metaKey) return;
+  if (viewEl.hidden) return;
   const target = /** @type {HTMLElement} */ (event.target);
-  const inSearch = target === searchEl;
   const radio = target instanceof HTMLInputElement && target.type === "radio";
-  if (!inSearch && !radio && /^(INPUT|SELECT|TEXTAREA)$/.test(target.tagName)) return;
-  if (radio && event.key.startsWith("Arrow")) return;
-  const matchCount = Math.min(searchObjections(state.lib, state.query).length, MAX_MATCHES);
-
-  if (event.key === "Escape") {
-    event.preventDefault();
-    if (state.query || state.openId) {
-      state.query = searchEl.value = "";
-      state.openId = null;
-      state.cursor = 0;
+  const action = keyAction(event, state, {
+    target: target === searchEl ? "search" : radio ? "radio" : /^(INPUT|SELECT|TEXTAREA)$/.test(target.tagName) ? "field" : "other",
+    inStats: Boolean(target.closest("#objection-stats")),
+    matchCount: Math.min(searchObjections(state.lib, state.query).length, MAX_MATCHES),
+    listIds: searching() ? [] : listed().map((it) => it.o.id),
+    quickPickIds: quickPicks(state.lib).map((o) => o.id),
+  });
+  if (action.prevent) event.preventDefault();
+  switch (action.type) {
+    case "clear":
+      Object.assign(state, typed(""));
+      searchEl.value = "";
       render();
       searchEl.focus({ preventScroll: true });
-    } else newCall();
-    return;
-  }
-  if (event.altKey && /^Digit[1-9]$/.test(event.code)) {
-    const n = Number(event.code.slice(5)) - 1;
-    if (n < matchCount) {
-      event.preventDefault();
-      state.cursor = n;
+      break;
+    case "new-call":
+      newCall();
+      break;
+    case "cursor":
+      state.cursor = action.cursor;
       render();
-    }
-    return;
-  }
-  if ((event.key === "ArrowDown" || event.key === "ArrowUp") && !target.closest("#objection-stats")) {
-    const step = event.key === "ArrowDown" ? 1 : -1;
-    if (state.query.trim()) {
-      if (matchCount < 2) return;
-      event.preventDefault();
-      state.cursor = (state.cursor + step + matchCount) % matchCount;
-    } else {
-      // With nothing typed, the arrows walk the whole list and preview each objection in the panel.
-      const items = listed();
-      if (!items.length) return;
-      event.preventDefault();
-      const at = items.findIndex((it) => it.o.id === state.openId);
-      const next = at < 0 ? (step > 0 ? 0 : items.length - 1) : (at + step + items.length) % items.length;
-      state.openId = items[next].o.id;
-    }
-    render();
-    listEl.querySelector('[aria-current="true"]')?.scrollIntoView({ block: "nearest" });
-    return;
-  }
-  // 1–9 open a quick pick even from the empty search box, so the page is ready the moment it opens.
-  if (/^[1-9]$/.test(event.key) && !event.altKey && !state.query) {
-    const pick = quickPicks(state.lib)[Number(event.key) - 1];
-    if (pick) {
-      event.preventDefault();
-      if (inSearch) searchEl.blur();
-      openObjection(pick.id);
-    }
-    return;
-  }
-  if (inSearch) {
-    if (event.key === "Enter") {
-      event.preventDefault();
+      listEl.querySelector('[aria-current="true"]')?.scrollIntoView({ block: "nearest" });
+      break;
+    case "open":
+      if (action.blurSearch) searchEl.blur();
+      if (action.reveal) openObjection(action.id);
+      else {
+        state.openId = action.id;
+        render();
+        listEl.querySelector('[aria-current="true"]')?.scrollIntoView({ block: "nearest" });
+      }
+      break;
+    case "blur-search":
       searchEl.blur();
-    }
-    return;
+      break;
+    case "focus-search":
+      searchEl.focus(action.prevent ? undefined : { preventScroll: true });
+      break;
+    case "none":
+      break;
   }
-  if (event.altKey) return;
-  if (event.key === "/") {
-    event.preventDefault();
-    searchEl.focus();
-    return;
-  }
-  // Any letter starts a search, wherever the focus is on this page.
-  if (event.key.length === 1 && /[a-z]/i.test(event.key)) searchEl.focus({ preventScroll: true });
 });
 
 modeEl.addEventListener("change", () => {
@@ -470,9 +447,7 @@ contactEl.addEventListener("change", () => {
   state.contactId = contactEl.value;
 });
 function newCall() {
-  state.query = "";
-  state.openId = null;
-  state.cursor = 0;
+  Object.assign(state, typed(""));
   state.said.clear();
   searchEl.value = "";
   say("");
