@@ -1,6 +1,6 @@
 // The contact list: saved prospects, their draft history and their follow-up dates.
 // Everything is kept in this browser (see contact-store.js); nothing about your prospects is stored on a server.
-import { ContactStore, STATUSES, contactsCsv, stepDraftFor as stepDraftForPanel, today, withSchedule } from "./contact-store.js";
+import { ContactStore, STATUSES, contactsCsv, followUpState, stepDraftFor as stepDraftForPanel, today, withSchedule } from "./contact-store.js";
 import { copyButton, dueLabel, el, formatDate } from "./dom.js";
 import { openLink, renderStepDraft, stepState } from "./step-draft.js";
 
@@ -168,7 +168,9 @@ const openSteps = new Set();
  * Used in the Sequence tab and on the contact page.
  */
 export function renderSequence(list, contact, onError) {
-  const nextIndex = contact.status === "active" ? contact.sequence.findIndex((s) => !s.doneAt) : -1;
+  const followUp = followUpState(contact);
+  const inSequence = followUp.kind !== "out";
+  const nextIndex = followUp.kind === "sequence" || followUp.kind === "manual" ? followUp.index : -1;
   list.replaceChildren(
     ...contact.sequence.map((step, index) => {
       const item = el("li", `cadence-step dated ${step.channel.toLowerCase()}`);
@@ -192,7 +194,7 @@ export function renderSequence(list, contact, onError) {
 
       const when = el("span", "day");
       when.append(el("strong", "", `Day ${step.day}`), el("span", "date", formatDate(step.due)));
-      const due = !step.doneAt && contact.status === "active" ? dueLabel(step.due, state.today) : null;
+      const due = !step.doneAt && inSequence ? dueLabel(step.due, state.today) : null;
       const action = el("span", "action", step.action);
       if (due && (due.state === "overdue" || due.state === "today")) action.append(el("span", `due ${due.state}`, due.text));
 
@@ -384,18 +386,26 @@ function renderDetail() {
   follow.type = "date";
   follow.name = "followUpDate";
   follow.value = contact.nextFollowUp?.date ?? "";
-  follow.disabled = contact.status !== "active";
+  const followUp = followUpState(contact);
+  follow.disabled = followUp.kind === "out";
   follow.addEventListener("change", () => save({ followUpDate: follow.value || null }, follow));
   followLabel.append(follow);
-  if (contact.status !== "active") {
-    followLabel.append(el("small", "", "Set the status back to In sequence to schedule follow-ups."));
-  } else if (contact.followUpDate) {
-    const reset = el("button", "link-button", "Use the sequence date instead");
-    reset.type = "button";
-    reset.addEventListener("click", () => save({ followUpDate: null }, reset));
-    followLabel.append(reset);
-  } else if (contact.nextFollowUp) {
-    followLabel.append(el("small", "", `${contact.nextFollowUp.channel}: ${contact.nextFollowUp.action}`));
+  switch (followUp.kind) {
+    case "out":
+      followLabel.append(el("small", "", "Set the status back to In sequence to schedule follow-ups."));
+      break;
+    case "manual": {
+      const reset = el("button", "link-button", "Use the sequence date instead");
+      reset.type = "button";
+      reset.addEventListener("click", () => save({ followUpDate: null }, reset));
+      followLabel.append(reset);
+      break;
+    }
+    case "sequence":
+      followLabel.append(el("small", "", `${followUp.step.channel}: ${followUp.step.action}`));
+      break;
+    case "finished":
+      break;
   }
   statusRow.append(statusLabel, followLabel);
 
@@ -450,9 +460,11 @@ function renderDetail() {
 
   const remove = el("button", "link-button danger", "Delete this contact");
   remove.type = "button";
+  // Deleting takes two presses. Drawing the page again (any change to the contact) starts over.
+  let armed = false;
   remove.addEventListener("click", async () => {
-    if (remove.dataset.confirm !== "yes") {
-      remove.dataset.confirm = "yes";
+    if (!armed) {
+      armed = true;
       remove.textContent = "Press again to delete their drafts and history for good";
       return;
     }

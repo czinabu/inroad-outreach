@@ -43,15 +43,39 @@ export function stepDue(contact, step) {
   return addDays(contact.sequenceStart, step.day - 1);
 }
 
-/** The next thing to do for this contact, or null when they're out of the sequence. */
+/** Statuses a prospect can still be won from: a won call moves these to "Meeting booked" (see logObjection). */
+const IN_PLAY = ["active", "replied"];
+
+/**
+ * Where a contact is in their follow-ups. Everything that asks "what's next for this person?" reads this.
+ * - out: not "In sequence" (replied, meeting booked, paused or not interested), so nothing is scheduled.
+ * - sequence: the next unfinished step, due on its own day of the sequence.
+ * - manual: a follow-up date the SDR set. It applies to the next unfinished step, or stands alone
+ *   (step undefined, index -1) once every step is done.
+ * - finished: still "In sequence", with every step done and no date set.
+ *
+ * @typedef {{ day: number, channel: string, action: string, doneAt?: string }} SequenceStep
+ * @typedef {{ kind: "out", status: string }
+ *   | { kind: "sequence", date: string, index: number, step: SequenceStep }
+ *   | { kind: "manual", date: string, index: number, step: SequenceStep | undefined }
+ *   | { kind: "finished" }} FollowUpState
+ * @param {any} contact
+ * @returns {FollowUpState}
+ */
+export function followUpState(contact) {
+  if (contact.status !== "active") return { kind: "out", status: contact.status };
+  const index = contact.sequence.findIndex((s) => !s.doneAt);
+  const step = contact.sequence[index];
+  if (contact.followUpDate) return { kind: "manual", date: contact.followUpDate, index, step };
+  if (!step) return { kind: "finished" };
+  return { kind: "sequence", date: stepDue(contact, step), index, step };
+}
+
+/** The next thing to do for this contact, or null when nothing is scheduled. A flat view of followUpState. */
 export function nextFollowUp(contact) {
-  if (contact.status !== "active") return null;
-  const step = contact.sequence.find((s) => !s.doneAt);
-  if (contact.followUpDate) {
-    return { date: contact.followUpDate, channel: step?.channel, action: step?.action ?? "Follow up" };
-  }
-  if (!step) return null;
-  return { date: stepDue(contact, step), channel: step.channel, action: step.action };
+  const state = followUpState(contact);
+  if (state.kind === "out" || state.kind === "finished") return null;
+  return { date: state.date, channel: state.step?.channel, action: state.step?.action ?? "Follow up" };
 }
 
 // --- Step drafts -------------------------------------------------------------
@@ -125,9 +149,11 @@ export function stepRequest(contact, index, sender) {
  */
 export function dueQueue(contacts, date) {
   return contacts
-    .map((contact) => ({ contact, next: nextFollowUp(contact) }))
-    .filter(({ next }) => next && next.date <= date)
-    .map(({ contact, next }) => ({ contact, index: contact.sequence.findIndex((s) => !s.doneAt), due: next.date }))
+    .flatMap((contact) => {
+      const state = followUpState(contact);
+      if (state.kind === "out" || state.kind === "finished" || state.date > date) return [];
+      return [{ contact, index: state.index, due: state.date }];
+    })
     .sort((a, b) => a.due.localeCompare(b.due) || a.contact.prospectName.localeCompare(b.contact.prospectName));
 }
 
@@ -330,7 +356,7 @@ export class ContactStore {
     const entry = { id: newId(), at: now, objectionId: String(objectionId).slice(0, 200), title: String(title).slice(0, 200), line: String(line).slice(0, 300), mode, outcome, statusBefore: contact.status };
     (contact.objectionCalls ??= []).push(entry);
     contact.activity.push({ at: now, callId: entry.id, text: `Call: "${entry.title}", ${outcome === "won" ? "won" : "lost"}${entry.line ? ` (said: ${entry.line.slice(0, 80)})` : ""}` });
-    if (outcome === "won" && (contact.status === "active" || contact.status === "replied")) {
+    if (outcome === "won" && IN_PLAY.includes(contact.status)) {
       contact.status = "meeting";
       contact.activity.push({ at: now, callId: entry.id, text: `Status: ${STATUSES.meeting}` });
     }
