@@ -12,7 +12,11 @@ const writeAllButton = document.getElementById("today-write-all");
 const layoutEl = document.getElementById("today-layout");
 const emptyEl = document.getElementById("today-empty");
 
-const state = { selected: null, date: "", writingAll: false, onOpenObjections: () => {}, onOpenContact: () => {} };
+/**
+ * writeAll is the Write all button's progress: null when idle, or { n, total } while it's on draft n of total.
+ * @type {{ selected: string | null, date: string, writeAll: { n: number, total: number } | null, onOpenObjections: (id: string) => void, onOpenContact: (id: string) => void }}
+ */
+const state = { selected: null, date: "", writeAll: null, onOpenObjections: () => {}, onOpenContact: () => {} };
 
 function localToday() {
   const now = new Date();
@@ -181,10 +185,11 @@ function render() {
       : "Draft outreach for a prospect and press Save to contacts. Their follow-ups show up here on the day they're due.";
   }
 
-  writeAllButton.hidden = missing === 0 && !state.writingAll;
-  writeAllButton.disabled = state.writingAll || !hasSenderProfile();
+  writeAllButton.hidden = missing === 0 && !state.writeAll;
+  writeAllButton.disabled = Boolean(state.writeAll) || !hasSenderProfile();
   writeAllButton.title = hasSenderProfile() ? "Write every missing follow-up draft in today's list" : "Fill in About you on the Draft page first";
-  if (!state.writingAll) writeAllButton.textContent = missing === 1 ? "Write the missing draft" : `Write all ${missing} drafts`;
+  if (state.writeAll) writeAllButton.textContent = `Writing ${state.writeAll.n} of ${state.writeAll.total}...`;
+  else writeAllButton.textContent = missing === 1 ? "Write the missing draft" : `Write all ${missing} drafts`;
 
   renderList(items);
   renderCard(items);
@@ -193,18 +198,17 @@ function render() {
 writeAllButton.addEventListener("click", async () => {
   const todo = missingDrafts(queue());
   if (!todo.length) return;
-  state.writingAll = true;
   showError("");
   try {
     for (const [n, { contact, index }] of todo.entries()) {
-      writeAllButton.textContent = `Writing ${n + 1} of ${todo.length}...`;
+      state.writeAll = { n: n + 1, total: todo.length };
       render();
       await writeStepDraft(contact, index, saveStepDraft);
     }
   } catch (error) {
     showError(error.message);
   } finally {
-    state.writingAll = false;
+    state.writeAll = null;
     render();
   }
 });

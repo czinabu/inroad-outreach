@@ -120,14 +120,17 @@ export function renderStepDraft(container, contact, index, { save, onError }) {
     }
   };
 
-  if (pending.has(key)) {
+  const state = stepState(contact, index);
+  container.dataset.state = state;
+
+  if (state === "writing") {
     const loading = el("p", "step-loading");
     loading.append(el("span", "spinner small"), el("span", "", `Writing this follow-up with ${draftingWith()}...`));
     container.append(loading);
     return;
   }
 
-  if (!draft) {
+  if (state === "missing") {
     const empty = el("div", "step-empty");
     const button = el("button", "primary", "Write this follow-up");
     button.type = "button";
@@ -154,7 +157,11 @@ export function renderStepDraft(container, contact, index, { save, onError }) {
   container.append(foot);
 }
 
-/** Whether a step has a draft, or is being written right now. */
+/**
+ * A step's draft: "writing" while the model is on it, "ready" when there's one to show (its own, or one from the
+ * first-touch drafts), "missing" when it still has to be written.
+ * @returns {"writing" | "ready" | "missing"}
+ */
 export function stepState(contact, index) {
   if (pending.has(`${contact.id}:${index}`)) return "writing";
   return stepDraftFor(contact, index) ? "ready" : "missing";

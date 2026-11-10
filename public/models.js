@@ -1,6 +1,7 @@
 // Model settings: which AI writes the drafts, and the calls to it. With LM Studio, Ollama or an API key
 // entered here, the browser talks to the model directly; the app's server only builds the prompt and checks the reply.
 import { el } from "./dom.js";
+import { draftRoute, modelPickerState } from "./states.js";
 
 const SETTINGS_KEY = "sdr-outreach:model";
 const API_KEY_KEY = "sdr-outreach:anthropic-key";
@@ -190,6 +191,18 @@ function claudeModel() {
   return settings.budget ? BUDGET_MODEL : CLAUDE_MODEL;
 }
 
+/** Who writes the next draft: see DraftRoute in states.js. Everything below that depends on it asks here. */
+function route() {
+  return draftRoute(settings, apiKey(), serverModel);
+}
+
+const NEEDS_SETUP = "Pick a model first: open Model settings and add your Anthropic API key, or choose LM Studio or Ollama.";
+
+/** Sends a prompt built by the server to the model this page calls itself. */
+function draftInBrowser(way, prompt) {
+  return way.kind === "browser-claude" ? draftWithClaude(prompt, way.key) : draftWithLocal(prompt, way.provider);
+}
+
 // --- Calling the models ------------------------------------------------------
 
 async function json(response) {
@@ -289,46 +302,52 @@ async function draftWithLocal(prompt, provider) {
 
 /** Drafts outreach with whichever model is chosen. Returns what /api/drafts returns. */
 export async function requestDrafts(data) {
-  const key = apiKey();
-  if (needsSetup()) throw new Error("Pick a model first: open Model settings and add your Anthropic API key, or choose LM Studio or Ollama.");
-  // Claude without a key here uses the server's own setup from .env.
-  if (settings.provider === "claude" && !key) return post("/api/drafts", data);
+  const way = route();
+  if (way.kind === "setup") throw new Error(NEEDS_SETUP);
+  if (way.kind === "server") return post("/api/drafts", data);
 
   const prompt = await post("/api/drafts/prompt", data);
-  const content = settings.provider === "claude" ? await draftWithClaude(prompt, key) : await draftWithLocal(prompt, settings.provider);
+  const content = await draftInBrowser(way, prompt);
   const drafts = await post("/api/drafts/parse", { industry: data.industry, content });
   return { ...drafts, websiteNote: prompt.websiteNote, attachmentNote: prompt.attachmentNote };
 }
 
 /** Drafts one follow-up step (see server/steps.ts) with whichever model is chosen. Returns what /api/steps returns. */
 export async function requestStepDraft(data) {
-  const key = apiKey();
-  if (needsSetup()) throw new Error("Pick a model first: open Model settings and add your Anthropic API key, or choose LM Studio or Ollama.");
-  if (settings.provider === "claude" && !key) return post("/api/steps", data);
+  const way = route();
+  if (way.kind === "setup") throw new Error(NEEDS_SETUP);
+  if (way.kind === "server") return post("/api/steps", data);
 
   const prompt = await post("/api/steps/prompt", data);
-  const content = settings.provider === "claude" ? await draftWithClaude(prompt, key) : await draftWithLocal(prompt, settings.provider);
+  const content = await draftInBrowser(way, prompt);
   return post("/api/steps/parse", { content });
 }
 
 /** Text for the loading screen. */
 export function draftingWith() {
-  if (settings.provider === "claude") {
-    if (!apiKey() && serverModel.provider === "local") return serverModel.model;
-    return settings.budget && apiKey() ? "Claude Haiku" : "Claude";
+  const way = route();
+  switch (way.kind) {
+    case "browser-local":
+      return `${settings.servers[way.provider].model || "your local model"} in ${SERVERS[way.provider].name}`;
+    case "browser-claude":
+      return way.budget ? "Claude Haiku" : "Claude";
+    case "server":
+      return way.model === "local" ? way.name : "Claude";
+    case "setup":
+      return "Claude";
   }
-  return `${settings.servers[settings.provider].model || "your local model"} in ${SERVERS[settings.provider].name}`;
 }
 
 // --- Testing the connection --------------------------------------------------
 
 async function testClaude() {
-  const key = apiKey();
-  if (!key) {
-    if (serverModel.provider === "local") return { ok: true, text: `No key entered here, so drafts use ${serverModel.model} from your .env file.` };
-    if (serverModel.hasApiKey) return { ok: true, text: "No key entered here, so drafts use the API key in your .env file." };
-    return { ok: false, text: "Enter your Anthropic API key first." };
+  const way = route();
+  if (way.kind === "setup") return { ok: false, text: "Enter your Anthropic API key first." };
+  if (way.kind === "server") {
+    return { ok: true, text: way.model === "local" ? `No key entered here, so drafts use ${way.name} from your .env file.` : "No key entered here, so drafts use the API key in your .env file." };
   }
+  if (way.kind !== "browser-claude") return testLocal(way.provider);
+  const key = way.key;
   const problem = keyProblem(key);
   if (problem) return { ok: false, text: problem };
   let response;
@@ -343,6 +362,7 @@ async function testClaude() {
 }
 
 // What each local server said it has: null until asked, then { models, error }. error is set when it couldn't be asked.
+/** @type {Record<"lmstudio" | "ollama", import("./states.js").Detected | null>} */
 const detected = { lmstudio: null, ollama: null };
 // Bumped on every lookup so an older, slower answer can't overwrite a newer one.
 const lookups = { lmstudio: 0, ollama: 0 };
@@ -415,15 +435,23 @@ function setStatus(state, text) {
   dot.parentElement.title = text;
 }
 
+/**
+ * The line under the buttons on the settings page. One of:
+ * { kind: "idle" } (empty), { kind: "checking" }, { kind: "problem", text } for a setting that can't work as typed
+ * (empty text means no problem), or { kind: "result", ok, text } for what a connection test said.
+ */
+function showCheck(check) {
+  statusLine.textContent = check.kind === "checking" ? "Checking..." : (check.text ?? "");
+  statusLine.className = check.kind === "result" ? (check.ok ? "good" : "error") : check.kind === "problem" && check.text ? "error" : "";
+}
+
 function showResult(result) {
-  statusLine.textContent = result.text;
-  statusLine.className = result.ok ? "good" : "error";
+  showCheck({ kind: "result", ...result });
   setStatus(result.ok ? "ok" : "error", result.ok ? summary() : result.text);
 }
 
 function summary() {
-  if (settings.provider === "claude") return needsSetup() ? "No Anthropic API key yet" : `Drafting with ${draftingWith()}`;
-  return `Drafting with ${draftingWith()}`;
+  return needsSetup() ? "No Anthropic API key yet" : `Drafting with ${draftingWith()}`;
 }
 
 function code(text) {
@@ -482,6 +510,8 @@ function renderRecommendation() {
 
 // True when the user chose to type a model name rather than pick one the server listed.
 let typing = false;
+// True while Refresh list is waiting for the server's answer.
+let refreshing = false;
 
 function option(value, text, { disabled = false } = {}) {
   const node = new Option(text, value);
@@ -496,10 +526,10 @@ function renderModelPicker() {
   const server = SERVERS[provider];
   const found = detected[provider];
   const saved = settings.servers[provider].model.trim();
-  const checking = lookups[provider] > 0 && (found === null || refreshButton.disabled);
-  const models = found?.models ?? [];
-  const canPick = models.length > 0;
-  const manual = typing || (found !== null && !canPick);
+  // A lookup is worth showing when it's the first one, or the user pressed Refresh list; a background re-check isn't.
+  const checking = lookups[provider] > 0 && (found === null || refreshing);
+  const picker = modelPickerState({ found, checking, typing });
+  const { manual, canPick, models } = picker;
 
   modelSelect.hidden = manual;
   modelInput.hidden = !manual;
@@ -520,20 +550,17 @@ function renderModelPicker() {
   modelSelect.value = saved;
 
   const typeHint = provider === "lmstudio" ? "the model's identifier from LM Studio's Developer tab" : "the name you pulled, like gemma4:12b";
-  if (checking) {
-    modelHelp.textContent = `Looking for the models you've downloaded in ${server.name}...`;
-  } else if (found?.error) {
-    modelHelp.textContent = `Couldn't list ${server.name}'s models. Type ${typeHint}, or fix the connection above and press Refresh list.`;
-  } else if (found && !canPick) {
-    modelHelp.textContent = `${server.name} has no models yet. Download one, then press Refresh list, or type ${typeHint}.`;
-  } else if (manual) {
-    modelHelp.textContent = `Type ${typeHint}.`;
-  } else if (found) {
-    const count = models.length === 1 ? "1 model" : `${models.length} models`;
-    modelHelp.textContent = `${count} found in ${server.name}. Downloaded a new one? Press Refresh list.`;
-  } else {
-    modelHelp.textContent = `Press Refresh list to see the models you've downloaded in ${server.name}.`;
-  }
+  const count = models.length === 1 ? "1 model" : `${models.length} models`;
+  const help = {
+    checking: `Looking for the models you've downloaded in ${server.name}...`,
+    unreachable: `Couldn't list ${server.name}'s models. Type ${typeHint}, or fix the connection above and press Refresh list.`,
+    empty: `${server.name} has no models yet. Download one, then press Refresh list, or type ${typeHint}.`,
+    typing: `Type ${typeHint}.`,
+    listed: `${count} found in ${server.name}. Downloaded a new one? Press Refresh list.`,
+    unchecked: `Press Refresh list to see the models you've downloaded in ${server.name}.`,
+  };
+  modelHelp.textContent = help[picker.kind];
+  form.dataset.modelPicker = picker.kind;
 }
 
 function renderForm() {
@@ -571,14 +598,13 @@ function renderForm() {
     renderModelPicker();
     renderRecommendation();
   }
-  statusLine.textContent = "";
-  statusLine.className = "";
+  showCheck({ kind: "idle" });
 }
 
 function onChange(update) {
   update();
   saveSettings();
-  statusLine.textContent = "";
+  showCheck({ kind: "idle" });
   setStatus("unknown", summary());
 }
 
@@ -594,9 +620,7 @@ for (const radio of form.querySelectorAll('input[name="provider"]')) {
 }
 keyInput.addEventListener("input", () => {
   storeApiKey(keyInput.value, rememberBox.checked);
-  const problem = keyProblem(keyInput.value.trim());
-  statusLine.textContent = problem;
-  statusLine.className = problem ? "error" : "";
+  showCheck({ kind: "problem", text: keyProblem(keyInput.value.trim()) });
   setStatus("unknown", summary());
 });
 rememberBox.addEventListener("change", () => storeApiKey(keyInput.value, rememberBox.checked));
@@ -604,8 +628,7 @@ document.getElementById("budget-mode").addEventListener("change", (event) => onC
 urlInput.addEventListener("input", () => onChange(() => (settings.servers[settings.provider].url = urlInput.value)));
 urlInput.addEventListener("change", () => {
   const problem = urlProblem(serverUrl(settings.provider));
-  statusLine.textContent = problem;
-  statusLine.className = problem ? "error" : "";
+  showCheck({ kind: "problem", text: problem });
   // A new address may be a different server with different models.
   if (!problem) refreshModels();
 });
@@ -621,14 +644,15 @@ modelMode.addEventListener("click", () => {
 /** Asks the server for its models again and shows what it said. */
 async function refreshModels() {
   if (settings.provider === "claude") return;
+  refreshing = true;
   refreshButton.disabled = true;
   refreshButton.textContent = "Refreshing...";
-  statusLine.className = "";
-  statusLine.textContent = "";
+  showCheck({ kind: "idle" });
   try {
     const result = await testLocal(settings.provider);
     if (!result.stale) showResult(result);
   } finally {
+    refreshing = false;
     refreshButton.disabled = false;
     refreshButton.textContent = "Refresh list";
     renderModelPicker();
@@ -644,8 +668,7 @@ hardwareSelect.addEventListener("change", () => {
 const testButton = document.getElementById("test-connection");
 testButton.addEventListener("click", async () => {
   testButton.disabled = true;
-  statusLine.className = "";
-  statusLine.textContent = "Checking...";
+  showCheck({ kind: "checking" });
   try {
     const result = await testConnection();
     if (!result.stale) showResult(result);
@@ -689,10 +712,5 @@ export async function initModelSettings() {
 
 /** True when nothing can draft yet, so the Draft view can point to the settings page. */
 export function needsSetup() {
-  return settings.provider === "claude" && !apiKey() && !serverCanDraft();
-}
-
-/** Whether /api/drafts works without a key from this page: a key in .env, or AI_PROVIDER=local. */
-function serverCanDraft() {
-  return serverModel.provider === "local" || serverModel.hasApiKey;
+  return route().kind === "setup";
 }

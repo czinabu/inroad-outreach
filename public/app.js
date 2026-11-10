@@ -15,6 +15,7 @@ import {
 import { showObjections } from "./objections.js";
 import { initToday, renderToday } from "./today.js";
 import { draftingWith, initModelSettings, maxFileBytes, requestDrafts } from "./models.js";
+import { draftPanelNext } from "./states.js";
 
 const form = document.getElementById("prospect-form");
 const submit = document.getElementById("submit");
@@ -365,10 +366,10 @@ onDraftAgain((contact) => {
     current = { prospect: Object.fromEntries(PROSPECT_FIELDS.map((n) => [n, contact[n]])), drafts: latest.drafts, contactId: contact.id };
     render({ ...latest.drafts, cadence: contact.sequence });
     renderSaveBar("Showing their latest saved drafts. Press Draft my outreach for new ones.");
-    showState("results");
+    panelEvent("show");
   } else {
     current = { prospect: null, drafts: null, contactId: null };
-    showState("empty");
+    panelEvent("clear");
   }
   showView("draft");
   form.elements.notes.focus();
@@ -439,10 +440,17 @@ function render(drafts) {
   selectTab("linkedin");
 }
 
-function showState(state) {
-  document.getElementById("empty-state").hidden = state !== "empty";
-  document.getElementById("loading").hidden = state !== "loading";
-  document.getElementById("results").hidden = state !== "results";
+/** The results panel: empty, drafting or results (see DraftPanel in states.js). The Draft button follows it. */
+let panel = { kind: "empty" };
+
+function panelEvent(event) {
+  panel = draftPanelNext(panel, event);
+  document.getElementById("empty-state").hidden = panel.kind !== "empty";
+  document.getElementById("loading").hidden = panel.kind !== "drafting";
+  document.getElementById("results").hidden = panel.kind !== "results";
+  document.querySelector(".results-panel").dataset.state = panel.kind;
+  submit.disabled = panel.kind === "drafting";
+  submit.textContent = panel.kind === "drafting" ? "Drafting..." : "Draft my outreach";
 }
 
 function showError(message) {
@@ -462,25 +470,21 @@ form.addEventListener("submit", async (event) => {
   delete data.attachment;
   for (const name of SAVED_FIELDS) save(`sdr-outreach:${name}`, data[name]);
 
+  if (panel.kind === "drafting") return;
   showError("");
-  submit.disabled = true;
-  submit.textContent = "Drafting...";
-  const hadResults = !document.getElementById("results").hidden;
   setText("loading-model", `Drafting with ${draftingWith()}. This takes a few seconds with Claude and up to a few minutes with a local model.`);
-  showState("loading");
+  panelEvent("submit");
   try {
     if (attachment) data.attachment = { name: attachment.name, data: await toBase64(attachment) };
     const body = await requestDrafts(data);
     render(body);
-    showState("results");
+    panelEvent("drafted");
     await afterDrafting(data, body);
     if (window.innerWidth < 960) document.querySelector(".results-panel").scrollIntoView({ behavior: "smooth" });
   } catch (error) {
     showError(error.message);
-    showState(hadResults ? "results" : "empty");
-  } finally {
-    submit.disabled = false;
-    submit.textContent = "Draft my outreach";
+    // Still drafting means the request itself failed; otherwise the drafts are up and only saving them failed.
+    panelEvent("failed");
   }
 });
 
