@@ -1,22 +1,49 @@
 # Inroad
 
-Inroad helps SDRs write first-touch outreach for LinkedIn, email and phone, whether you're new to prospecting or have done it for years.
+Inroad helps SDRs write first-touch outreach for LinkedIn, email and phone, then work the follow-ups and handle objections on calls, whether you're new to prospecting or have done it for years.
 
-Enter one prospect and what you sell, and AI (Claude, or a free model on your own computer through LM Studio or Ollama) drafts a LinkedIn connection note and follow-up, a cold email, and a phone opener with discovery questions and a voicemail.
+Enter one prospect and what you sell, and AI (Claude, or a free model on your own computer through LM Studio or Ollama) drafts a LinkedIn connection note and follow-up, a cold email, and a phone opener with discovery questions and a voicemail. Nothing is sent for you: you copy each draft and send it from your own accounts.
+
+![The Today page: four follow-ups due, most overdue first, with a ready-to-send LinkedIn message for the first one](docs/screenshots/today.png)
+
+**Contents:** [Features](#features) · [Use it online](#use-it-online) · [Run it on your own computer](#run-it-on-your-own-computer) · [Model settings](#model-settings) · [Privacy](#your-api-key-and-your-privacy) · [Develop](#develop)
+
+## Features
+
+### Draft
 
 - **Industry playbooks:** pick the prospect's industry (software, healthcare, manufacturing, finance, real estate, professional services, retail, education, construction, local business) and the drafts use the angles and wording that work in that market, plus a day-by-day follow-up sequence across LinkedIn, email and phone.
 - **Research-backed drafting rules:** short, plain-text emails with one low-pressure question, pitch-free LinkedIn notes, and phone openers that admit it's a cold call and ask for 30 seconds, following published data from Gong and Reply.io.
 - **Context:** add the company's website and the opener mentions something relevant from it. You can also attach a PDF or text file (a case study, pricing sheet or call notes) and say what it is. If a site or file can't be read, you still get drafts, with a note saying it wasn't used.
 - **Guide me** mode adds tips under each channel, common objections and how to answer them, and explains why each draft works.
 
-- **Contacts:** save a prospect and the tool keeps every set of drafts you write for them, puts a date on each step of their follow-up sequence, and shows who's due today. Check steps off as you go, set a status (replied, meeting booked, not interested), add their email, phone and LinkedIn, and export everything to CSV for HubSpot, Salesforce or a spreadsheet. Contacts are saved only in your own browser, so nobody else using the app can see them. Use **download a backup** on the Contacts page now and then, since clearing your browser data deletes them, and **Restore a backup** to move them to another browser. If an older version saved contacts in `data/contacts.json`, they move into your browser the first time you open the app on that computer.
+![The Draft page: the prospect form on the left and the LinkedIn drafts, with why they work, on the right](docs/screenshots/draft.png)
 
-- **Today:** every follow-up that's due, one at a time, most overdue first. Each one shows its draft with a button that opens it in the right place: your email app with the subject and body filled in, a call to their number, or their LinkedIn profile. Send it, press **Mark done, next**, and the next one comes up. **Tomorrow** moves a touch a day, and **They replied** takes someone out of the sequence. When anything is due, the app opens on this page.
+### Today
+
+- **Your daily queue:** every follow-up that's due, one at a time, most overdue first. Each one shows its draft with a button that opens it in the right place: your email app with the subject and body filled in, a call to their number, or their LinkedIn profile. Send it, press **Mark done, next**, and the next one comes up. **Tomorrow** moves a touch a day, and **They replied** takes someone out of the sequence. When anything is due, the app opens on this page.
 - **Drafts for every step:** the first email, the first call and the LinkedIn note and follow-up come from the first-touch drafts. Every later step (the day 5 reply in the same thread, the second call, the break-up email) is written when it comes due, knowing what you already sent, so each touch adds something new instead of "just checking in". Write one at a time from the Today page or the contact's sequence, or press **Write all drafts** to get the day's batch ready before a call block. They use your name and offer from **About you** on the Draft page.
 
-- **Objections:** type a word from what the prospect said (price, busy, think about it) and read the rebuttal and the close for your call type (transfer or appointment). It's static text kept in your browser, with no AI call, so it's instant and works offline. Pick a prospect from your contacts and one tap on **Transferred**/**Booked** or **Lost** logs the objection, the line you said and the result on their history; a win moves them to Meeting booked. **Save as file** and **Load a set** move your objection set between browsers, in the same format as the standalone sdr-objection-handler app. Keep a private set in a file rather than committing it. On a call you can keep your hands on the keyboard: type anywhere to search, press 1–9 for quick picks, ↑ ↓ to move through matches and Esc to clear. A mis-tapped outcome can be undone for a few seconds, and **Stats** shows your most common objections and which lines win once a line has been used twice.
+### Contacts
 
-Nothing is sent for you. You copy each draft and send it from your own accounts.
+Save a prospect and the tool keeps every set of drafts you write for them, puts a date on each step of their follow-up sequence, and shows who's due today. Check steps off as you go, set a status (replied, meeting booked, not interested), add their email, phone and LinkedIn, and export everything to CSV for HubSpot, Salesforce or a spreadsheet. Contacts are saved only in your own browser, so nobody else using the app can see them. Use **download a backup** on the Contacts page now and then, since clearing your browser data deletes them, and **Restore a backup** to move them to another browser. If an older version saved contacts in `data/contacts.json`, they move into your browser the first time you open the app on that computer.
+
+![The Contacts page: saved prospects sorted by who's due, with one prospect's details and sequence open](docs/screenshots/contacts.png)
+
+### Objections
+
+Type a word from what the prospect said (price, busy, think about it) and read the rebuttal and the close for your call type (transfer or appointment). It's static text kept in your browser, with no AI call, so it's instant and works offline. Pick a prospect from your contacts and one tap on **Transferred**/**Booked** or **Lost** logs the objection, the line you said and the result on their history; a win moves them to Meeting booked. **Save as file** and **Load a set** move your objection set between browsers, in the same format as the standalone sdr-objection-handler app. Keep a private set in a file rather than committing it. On a call you can keep your hands on the keyboard: type anywhere to search, press 1–9 for quick picks, ↑ ↓ to move through matches and Esc to clear. A mis-tapped outcome can be undone for a few seconds, and **Stats** shows your most common objections and which lines win once a line has been used twice.
+
+![The Objections page: a search for "price" showing the rebuttal to say and the close for booking a meeting](docs/screenshots/objections.png)
+
+### Dark mode and phones
+
+Pick **System**, **Light** or **Dark** at the bottom of the sidebar. On a phone the sidebar becomes a compact header with a scrollable row of pages.
+
+<p>
+  <img src="docs/screenshots/today-dark.png" alt="The Today page in dark mode" width="68%">
+  <img src="docs/screenshots/today-phone.png" alt="The Today page on a phone" width="24%">
+</p>
 
 ## Use it online
 
@@ -77,14 +104,42 @@ npm run typecheck
 
 GitHub Actions runs both on every pull request and on pushes to `main`.
 
-- `server/drafts.ts` holds the prompt, the output schema and the Claude call.
-- `server/local.ts` calls a local or self-hosted model over the OpenAI chat completions API, and checks replies the browser got from one.
-- `server/playbooks.ts` holds the industry playbooks and follow-up sequences.
-- `server/steps.ts` holds the prompt and output schema for follow-up step drafts.
-- `server/attachment.ts` reads text out of attached PDFs and text files.
-- `server/website.ts` fetches a company web page (public addresses only) and pulls out its readable text.
-- `public/objection-library.js` cleans, searches and exports objection sets; `public/objections.js` is the Objections page and `public/objections-demo.js` the built-in demo set.
-- `public/contact-store.js` keeps saved contacts in the browser, works out follow-up dates and builds the CSV export and backups.
+### Project layout
+
+**Server** (`server/`, TypeScript run directly by Node)
+
 - `server/app.ts` is the Express server with `/api/drafts`, plus `/api/drafts/prompt` and `/api/drafts/parse` for when the browser calls the model itself.
 - `server/index.ts` starts the app on your computer; `server.ts` is the entry point Vercel uses for the online copy, and `vercel.json` sets its security headers.
-- `public/` is the page itself (plain HTML, CSS and JavaScript). `public/models.js` is the Model settings page and the browser's calls to Anthropic, LM Studio and Ollama.
+- `server/security.ts` holds the security headers shared by the local app and the Vercel build.
+- `server/drafts.ts` holds the prompt, the output schema and the Claude call.
+- `server/steps.ts` holds the prompt and output schema for follow-up step drafts.
+- `server/local.ts` calls a local or self-hosted model over the OpenAI chat completions API, and checks replies the browser got from one.
+- `server/playbooks.ts` holds the industry playbooks and follow-up sequences.
+- `server/attachment.ts` reads text out of attached PDFs and text files.
+- `server/website.ts` fetches a company web page (public addresses only) and pulls out its readable text.
+
+**Page** (`public/`, plain HTML, CSS and JavaScript with no build step)
+
+- `public/index.html`, `public/styles.css` and `public/app.js` are the page, its styles and the Draft view; `public/fonts/` holds the IBM Plex fonts.
+- `public/today.js` is the Today page and `public/step-draft.js` shows one sequence step's draft there and on a contact.
+- `public/contacts.js` is the Contacts page; `public/contact-store.js` keeps saved contacts in the browser, works out follow-up dates and builds the CSV export and backups.
+- `public/objections.js` is the Objections page, `public/objection-state.js` its selection and keyboard rules, `public/objection-library.js` cleans, searches and exports objection sets, and `public/objections-demo.js` is the built-in starter set.
+- `public/models.js` is the Model settings page and the browser's calls to Anthropic, LM Studio and Ollama.
+- `public/states.js` holds the app's state machines; `public/theme.js` applies the System, Light or Dark theme; `public/dom.js` has small page helpers.
+
+**Everything else**
+
+- `test/` holds the tests, run with Node's built-in test runner.
+- `scripts/build-vercel.ts` builds the online copy for Vercel; `scripts/screenshots.mjs` takes the README screenshots.
+- `docs/screenshots/` holds the README screenshots.
+
+### Updating the screenshots
+
+When a page changes, retake the screenshots so the README matches the app. The script starts the app on port 3099, fills the browser with made-up sample contacts, answers drafting with sample text (no API key or model needed), and saves each page to `docs/screenshots/`.
+
+```bash
+npm install --no-save playwright && npx playwright install chromium
+npm run screenshots
+```
+
+Playwright isn't one of the app's dependencies, so `--no-save` keeps it out of `package.json` and the lockfile.

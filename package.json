@@ -6,13 +6,14 @@
     "start": "node --env-file-if-exists=.env server/index.ts",
     "test": "node --test test/*.test.ts",
     "typecheck": "tsc --noEmit",
-    "build:vercel": "node scripts/build-vercel.ts"
+    "build:vercel": "node scripts/build-vercel.ts",
+    "screenshots": "node scripts/screenshots.mjs"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/czinabu/sdr-outreach.git"
   },
-  "license": "ISC",
+  "license": "MIT",
   "bugs": {
     "url": "https://github.com/czinabu/sdr-outreach/issues"
   },
